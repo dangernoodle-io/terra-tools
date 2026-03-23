@@ -5,14 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func writeHCL(t *testing.T, dir, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, "template.hcl")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("writing fixture template.hcl: %v", err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 	return path
 }
 
@@ -27,25 +28,13 @@ template "my-service" {
 }
 `)
 	def, warnings, err := ParseTemplateFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(warnings) != 0 {
-		t.Errorf("unexpected warnings: %v", warnings)
-	}
-	if len(def.Stacks) != 1 {
-		t.Fatalf("expected 1 stack, got %d", len(def.Stacks))
-	}
+	require.NoError(t, err)
+	assert.Empty(t, warnings)
+	require.Len(t, def.Stacks, 1)
 	stack := def.Stacks[0]
-	if stack.Name != "my-service" {
-		t.Errorf("expected name %q, got %q", "my-service", stack.Name)
-	}
-	if _, ok := stack.Values["service"]; !ok {
-		t.Error("expected values key 'service' to be present")
-	}
-	if _, ok := stack.Values["env"]; !ok {
-		t.Error("expected values key 'env' to be present")
-	}
+	assert.Equal(t, "my-service", stack.Name)
+	assert.Contains(t, stack.Values, "service")
+	assert.Contains(t, stack.Values, "env")
 }
 
 func TestParseTemplateFile_MultipleTemplates(t *testing.T) {
@@ -64,18 +53,10 @@ template "service-b" {
 }
 `)
 	def, _, err := ParseTemplateFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(def.Stacks) != 2 {
-		t.Fatalf("expected 2 stacks, got %d", len(def.Stacks))
-	}
-	if def.Stacks[0].Name != "service-a" {
-		t.Errorf("expected first stack name %q, got %q", "service-a", def.Stacks[0].Name)
-	}
-	if def.Stacks[1].Name != "service-b" {
-		t.Errorf("expected second stack name %q, got %q", "service-b", def.Stacks[1].Name)
-	}
+	require.NoError(t, err)
+	require.Len(t, def.Stacks, 2)
+	assert.Equal(t, "service-a", def.Stacks[0].Name)
+	assert.Equal(t, "service-b", def.Stacks[1].Name)
 }
 
 func TestParseTemplateFile_DuplicateName(t *testing.T) {
@@ -94,12 +75,8 @@ template "my-service" {
 }
 `)
 	_, _, err := ParseTemplateFile(path)
-	if err == nil {
-		t.Fatal("expected error for duplicate template name, got nil")
-	}
-	if !strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-		t.Errorf("expected error to contain 'duplicate', got: %v", err)
-	}
+	require.Error(t, err)
+	assert.Contains(t, strings.ToLower(err.Error()), "duplicate")
 }
 
 func TestParseTemplateFile_EmptyName(t *testing.T) {
@@ -114,12 +91,8 @@ template "" {
 }
 `)
 	_, _, err := ParseTemplateFile(path)
-	if err == nil {
-		t.Fatal("expected error for empty template name, got nil")
-	}
-	if !strings.Contains(strings.ToLower(err.Error()), "empty") {
-		t.Errorf("expected error to contain 'empty', got: %v", err)
-	}
+	require.Error(t, err)
+	assert.Contains(t, strings.ToLower(err.Error()), "empty")
 }
 
 func TestParseTemplateFile_ConfigIgnoreDeps(t *testing.T) {
@@ -136,15 +109,10 @@ template "svc" {
 }
 `)
 	def, _, err := ParseTemplateFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(def.IgnoreDeps) != 2 {
-		t.Fatalf("expected 2 ignore_deps, got %d: %v", len(def.IgnoreDeps), def.IgnoreDeps)
-	}
-	if def.IgnoreDeps[0] != "foo" || def.IgnoreDeps[1] != "bar" {
-		t.Errorf("unexpected ignore_deps values: %v", def.IgnoreDeps)
-	}
+	require.NoError(t, err)
+	require.Len(t, def.IgnoreDeps, 2)
+	assert.Equal(t, "foo", def.IgnoreDeps[0])
+	assert.Equal(t, "bar", def.IgnoreDeps[1])
 }
 
 func TestParseTemplateFile_ConfigNameMustMatch(t *testing.T) {
@@ -161,12 +129,8 @@ template "svc" {
 }
 `)
 	def, _, err := ParseTemplateFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if def.NameMustMatch != "service" {
-		t.Errorf("expected NameMustMatch %q, got %q", "service", def.NameMustMatch)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "service", def.NameMustMatch)
 }
 
 func TestParseTemplateFile_Locals(t *testing.T) {
@@ -183,27 +147,15 @@ template "svc" {
 }
 `)
 	def, _, err := ParseTemplateFile(path)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if def.Locals == nil {
-		t.Fatal("expected non-nil Locals map")
-	}
-	if _, ok := def.Locals["env"]; !ok {
-		t.Error("expected 'env' in Locals")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, def.Locals)
+	assert.Contains(t, def.Locals, "env")
 	// The value should have been resolved via local.env reference.
-	if len(def.Stacks) != 1 {
-		t.Fatalf("expected 1 stack, got %d", len(def.Stacks))
-	}
-	if _, ok := def.Stacks[0].Values["environment"]; !ok {
-		t.Error("expected 'environment' key in evaluated values")
-	}
+	require.Len(t, def.Stacks, 1)
+	assert.Contains(t, def.Stacks[0].Values, "environment")
 }
 
 func TestParseTemplateFile_MissingFile(t *testing.T) {
 	_, _, err := ParseTemplateFile("/nonexistent/path/template.hcl")
-	if err == nil {
-		t.Fatal("expected error for missing file, got nil")
-	}
+	require.Error(t, err)
 }

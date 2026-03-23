@@ -7,87 +7,65 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFormatToTemplate_ValidFormat(t *testing.T) {
 	fields := map[string]string{
-		"project": "my-project",
+		"project": "acme-project",
 		"service": "compute.googleapis.com",
 	}
 	format := "projects/{project}/services/{service}"
 	result := FormatToTemplate(format, fields)
 
-	if !strings.Contains(result, "{{ .project }}") {
-		t.Errorf("expected {{ .project }} in result, got: %q", result)
-	}
-	if !strings.Contains(result, "{{ .service }}") {
-		t.Errorf("expected {{ .service }} in result, got: %q", result)
-	}
-	// Should not contain the original placeholder syntax.
-	if strings.Contains(result, "{project}") {
-		t.Errorf("expected {project} to be replaced, got: %q", result)
-	}
+	assert.Contains(t, result, "{{ .project }}")
+	assert.Contains(t, result, "{{ .service }}")
+	assert.NotContains(t, result, "{project}")
 }
 
 func TestFormatToTemplate_UnknownField(t *testing.T) {
 	fields := map[string]string{
-		"project": "my-project",
+		"project": "acme-project",
 	}
 	format := "projects/{project}/regions/{region}/resources/{name}"
 	result := FormatToTemplate(format, fields)
 
-	if !strings.Contains(result, "{{ .project }}") {
-		t.Errorf("expected {{ .project }} in result, got: %q", result)
-	}
-	// Unknown fields should become TODO(fieldname).
-	if !strings.Contains(result, "TODO(region)") {
-		t.Errorf("expected TODO(region) in result, got: %q", result)
-	}
-	if !strings.Contains(result, "TODO(name)") {
-		t.Errorf("expected TODO(name) in result, got: %q", result)
-	}
+	assert.Contains(t, result, "{{ .project }}")
+	assert.Contains(t, result, "TODO(region)")
+	assert.Contains(t, result, "TODO(name)")
 }
 
 func TestFormatToTemplate_Empty(t *testing.T) {
 	// Should not panic on empty input.
 	result := FormatToTemplate("", nil)
-	if result != "" {
-		t.Errorf("expected empty result for empty format, got: %q", result)
-	}
+	assert.Empty(t, result)
 }
 
 func TestFormatToTemplate_DoubleBracePlaceholder(t *testing.T) {
 	fields := map[string]string{
-		"project": "proj",
+		"project": "acme-project",
 	}
 	// Both {{name}} and {name} styles should be handled.
 	format := "{{project}}/resource"
 	result := FormatToTemplate(format, fields)
-	if !strings.Contains(result, "{{ .project }}") {
-		t.Errorf("expected {{ .project }} in result from double-brace format, got: %q", result)
-	}
+	assert.Contains(t, result, "{{ .project }}")
 }
 
 func TestProviderFromType_KnownType(t *testing.T) {
 	result := ProviderFromType("google_project_service")
-	if result != "google" {
-		t.Errorf("expected provider %q, got %q", "google", result)
-	}
+	assert.Equal(t, "google", result)
 }
 
 func TestProviderFromType_MultiPart(t *testing.T) {
 	result := ProviderFromType("aws_s3_bucket")
-	if result != "aws" {
-		t.Errorf("expected provider %q, got %q", "aws", result)
-	}
+	assert.Equal(t, "aws", result)
 }
 
 func TestProviderFromType_NoUnderscore(t *testing.T) {
 	// Resource type with no underscore — should return the full string.
 	result := ProviderFromType("resource")
-	if result != "resource" {
-		t.Errorf("expected %q for no-underscore type, got %q", "resource", result)
-	}
+	assert.Equal(t, "resource", result)
 }
 
 func TestParseImportSection_StandardFormat(t *testing.T) {
@@ -98,14 +76,12 @@ Some description.
 ## Import
 
 ` + "```" + `
-terraform import google_compute_instance.default projects/my-project/zones/us-central1-a/instances/my-instance
+terraform import google_compute_instance.default projects/acme-project/zones/us-central1-a/instances/acme-instance
 ` + "```" + `
 `
 	result := ParseImportSection(markdown)
-	want := "projects/my-project/zones/us-central1-a/instances/my-instance"
-	if result != want {
-		t.Errorf("expected %q, got %q", want, result)
-	}
+	want := "projects/acme-project/zones/us-central1-a/instances/acme-instance"
+	assert.Equal(t, want, result)
 }
 
 func TestParseImportSection_NoImportSection(t *testing.T) {
@@ -114,9 +90,7 @@ func TestParseImportSection_NoImportSection(t *testing.T) {
 Some description with no import heading.
 `
 	result := ParseImportSection(markdown)
-	if result != "" {
-		t.Errorf("expected empty string, got %q", result)
-	}
+	assert.Empty(t, result)
 }
 
 func TestParseImportSection_NoImportCommand(t *testing.T) {
@@ -127,9 +101,7 @@ func TestParseImportSection_NoImportCommand(t *testing.T) {
 This resource cannot be imported.
 `
 	result := ParseImportSection(markdown)
-	if result != "" {
-		t.Errorf("expected empty string, got %q", result)
-	}
+	assert.Empty(t, result)
 }
 
 func TestFetchImportFormat_FallbackURL(t *testing.T) {
@@ -158,13 +130,11 @@ func TestFetchImportFormat_FallbackURL(t *testing.T) {
 	cache := map[string]string{}
 	result := FetchImportFormat(context.Background(), "google_project_service", cache)
 	want := "{{project}}/{{service}}"
-	if result != want {
-		t.Errorf("expected %q, got %q", want, result)
-	}
+	assert.Equal(t, want, result)
 }
 
 func TestFetchImportFormat_SuffixHit(t *testing.T) {
-	importBody := "## Import\n\n" + "```" + "\nterraform import google_compute_instance.default projects/my-project/zones/us-central1-a/instances/my-instance\n" + "```"
+	importBody := "## Import\n\n" + "```" + "\nterraform import google_compute_instance.default projects/acme-project/zones/us-central1-a/instances/acme-instance\n" + "```"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/r/compute_instance.html.markdown") {
@@ -182,8 +152,6 @@ func TestFetchImportFormat_SuffixHit(t *testing.T) {
 
 	cache := map[string]string{}
 	result := FetchImportFormat(context.Background(), "google_compute_instance", cache)
-	want := "projects/my-project/zones/us-central1-a/instances/my-instance"
-	if result != want {
-		t.Errorf("expected %q, got %q", want, result)
-	}
+	want := "projects/acme-project/zones/us-central1-a/instances/acme-instance"
+	assert.Equal(t, want, result)
 }
