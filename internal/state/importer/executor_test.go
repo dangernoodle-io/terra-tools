@@ -2,30 +2,24 @@ package importer
 
 import (
 	"context"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGeneratePlan_BinaryNotFound(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	_, err := GeneratePlan(context.Background(), ".", false)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "terraform") {
-		t.Errorf("expected error to contain %q, got: %s", "terraform", err.Error())
-	}
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "terraform")
 }
 
 func TestTerragruntGeneratePlan_BinaryNotFound(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	_, err := TerragruntGeneratePlan(context.Background(), ".", false)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "terragrunt") {
-		t.Errorf("expected error to contain %q, got: %s", "terragrunt", err.Error())
-	}
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "terragrunt")
 }
