@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 
@@ -109,4 +110,129 @@ func TestGenerate_NameMustMatch_Mismatch(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotEmpty(t, errs)
+}
+
+func TestGenerate_WritePath(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Build catalog structure.
+	rootDir := filepath.Join(tmpDir, "root")
+	require.NoError(t, os.MkdirAll(rootDir, 0o755))
+	rootConfig := filepath.Join(rootDir, "terragrunt-root.hcl")
+	require.NoError(t, os.WriteFile(rootConfig, []byte("# root config"), 0o644))
+
+	projectDir := filepath.Join(tmpDir, "project")
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
+
+	// Create a project-level terragrunt.hcl.
+	projectTemplate := filepath.Join(projectDir, "terragrunt.hcl")
+	require.NoError(t, os.WriteFile(projectTemplate, []byte(`include "root" {
+  path = find_in_parent_folders("terragrunt-root.hcl")
+}
+
+inputs = {
+  env = values.env
+}
+`), 0o644))
+
+	// Create a service directory with a terragrunt.hcl template.
+	cloudRunDir := filepath.Join(projectDir, "cloud-run")
+	require.NoError(t, os.MkdirAll(cloudRunDir, 0o755))
+	serviceTemplate := filepath.Join(cloudRunDir, "terragrunt.hcl")
+	require.NoError(t, os.WriteFile(serviceTemplate, []byte(`include "root" {
+  path = find_in_parent_folders("terragrunt-root.hcl")
+}
+
+inputs = {
+  name = values.name
+}
+`), 0o644))
+
+	// Build a catalog layout.
+	layout := &catalog.Layout{
+		RootConfig: rootConfig,
+		ProjectDir: projectDir,
+		Services: map[string]catalog.Service{
+			"cloud-run": {
+				Path:     "cloud-run",
+				IsRegion: false,
+			},
+		},
+		Config: &catalog.CatalogConfig{},
+	}
+
+	// Create a template definition.
+	def := buildTemplateDef("acme-svc", map[string]cty.Value{
+		"env":       cty.StringVal("staging"),
+		"name":      cty.StringVal("acme-svc"),
+		"cloud-run": cty.EmptyObjectVal, // Service is present in values
+	})
+
+	outputDir := t.TempDir()
+	errs, err := Generate(&Config{
+		TemplateDef: def,
+		Catalog:     layout,
+		OutputDir:   outputDir,
+		DryRun:      false,
+	})
+
+	require.NoError(t, err)
+	require.Empty(t, errs)
+
+	// Verify output directory was created.
+	stat, err := os.Stat(outputDir)
+	require.NoError(t, err)
+	assert.True(t, stat.IsDir())
+
+	// Verify terragrunt-root.hcl was copied.
+	rootDst := filepath.Join(outputDir, "terragrunt-root.hcl")
+	rootContent, err := os.ReadFile(rootDst)
+	require.NoError(t, err)
+	assert.Equal(t, "# root config", string(rootContent))
+
+	// Verify project template was written.
+	projectDst := filepath.Join(outputDir, "acme-svc", "terragrunt.hcl")
+	projectContent, err := os.ReadFile(projectDst)
+	require.NoError(t, err)
+	assert.Contains(t, string(projectContent), "staging")
+	assert.NotContains(t, string(projectContent), "values.env")
+
+	// Verify service template was written.
+	serviceDst := filepath.Join(outputDir, "acme-svc", "cloud-run", "terragrunt.hcl")
+	serviceContent, err := os.ReadFile(serviceDst)
+	require.NoError(t, err)
+	assert.Contains(t, string(serviceContent), "acme-svc")
+	assert.NotContains(t, string(serviceContent), "values.name")
+}
+
+func TestCopyFile_Successful(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a source file.
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	expectedContent := "test file content"
+	require.NoError(t, os.WriteFile(srcPath, []byte(expectedContent), 0o644))
+
+	// Copy it to a destination.
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+	err := copyFile(srcPath, dstPath)
+
+	require.NoError(t, err)
+
+	// Verify the destination has the same content.
+	dstContent, err := os.ReadFile(dstPath)
+	require.NoError(t, err)
+	assert.Equal(t, expectedContent, string(dstContent))
+}
+
+func TestCopyFile_SourceNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	srcPath := filepath.Join(tmpDir, "nonexistent.txt")
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+
+	err := copyFile(srcPath, dstPath)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reading")
 }
