@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/terraform-json v0.27.2
 	github.com/itchyny/gojq v0.12.18
 	github.com/mattn/go-isatty v0.0.20
+	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/zclconf/go-cty v1.18.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -19,10 +20,12 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
