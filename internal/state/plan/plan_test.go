@@ -3,6 +3,9 @@ package plan
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const validPlanJSON = `{
@@ -34,44 +37,28 @@ const noCreatesPlanJSON = `{
 
 func TestParse_Valid(t *testing.T) {
 	p, err := Parse(strings.NewReader(validPlanJSON))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(p.ResourceChanges) != 2 {
-		t.Errorf("expected 2 resource changes, got %d", len(p.ResourceChanges))
-	}
+	require.NoError(t, err)
+	assert.Len(t, p.ResourceChanges, 2)
 }
 
 func TestParse_InvalidJSON(t *testing.T) {
 	_, err := Parse(strings.NewReader(`not valid json {{{`))
-	if err == nil {
-		t.Fatal("expected error for invalid JSON, got nil")
-	}
+	require.Error(t, err)
 }
 
 func TestFilterCreates_OnlyCreates(t *testing.T) {
 	p, err := Parse(strings.NewReader(validPlanJSON))
-	if err != nil {
-		t.Fatalf("unexpected error parsing plan: %v", err)
-	}
+	require.NoError(t, err)
 
 	creates := FilterCreates(p)
-	if len(creates) != 1 {
-		t.Fatalf("expected 1 create, got %d", len(creates))
-	}
-	if creates[0].Address != "google_project_service.apis" {
-		t.Errorf("expected address %q, got %q", "google_project_service.apis", creates[0].Address)
-	}
+	require.Len(t, creates, 1)
+	assert.Equal(t, "google_project_service.apis", creates[0].Address)
 }
 
 func TestFilterCreates_Empty(t *testing.T) {
 	p, err := Parse(strings.NewReader(noCreatesPlanJSON))
-	if err != nil {
-		t.Fatalf("unexpected error parsing plan: %v", err)
-	}
+	require.NoError(t, err)
 
 	creates := FilterCreates(p)
-	if len(creates) != 0 {
-		t.Errorf("expected 0 creates, got %d", len(creates))
-	}
+	assert.Empty(t, creates)
 }

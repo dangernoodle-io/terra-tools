@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 
 	"dangernoodle.io/terra-tools/internal/catalog/catalog"
@@ -19,17 +20,11 @@ func minimalLayout(t *testing.T) *catalog.Layout {
 
 	// Create the minimum directory structure required for a non-nil Layout.
 	rootDir := filepath.Join(dir, "root")
-	if err := os.MkdirAll(rootDir, 0o755); err != nil {
-		t.Fatalf("creating root dir: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(rootDir, 0o755))
 	rootConfig := filepath.Join(rootDir, "terragrunt-root.hcl")
-	if err := os.WriteFile(rootConfig, []byte(`# root config`), 0o644); err != nil {
-		t.Fatalf("creating root config: %v", err)
-	}
+	require.NoError(t, os.WriteFile(rootConfig, []byte(`# root config`), 0o644))
 	projectDir := filepath.Join(dir, "project")
-	if err := os.MkdirAll(projectDir, 0o755); err != nil {
-		t.Fatalf("creating project dir: %v", err)
-	}
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 
 	return &catalog.Layout{
 		RootConfig: rootConfig,
@@ -67,21 +62,13 @@ func TestGenerate_DryRun(t *testing.T) {
 		DryRun:      true,
 	})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(errs) != 0 {
-		t.Fatalf("unexpected validation errors: %v", errs)
-	}
+	require.NoError(t, err)
+	require.Empty(t, errs)
 
 	// In dry-run mode no files should be written.
 	entries, err := os.ReadDir(outputDir)
-	if err != nil {
-		t.Fatalf("reading output dir: %v", err)
-	}
-	if len(entries) != 0 {
-		t.Errorf("expected no files written during dry-run, found %d entries", len(entries))
-	}
+	require.NoError(t, err)
+	require.Empty(t, entries)
 }
 
 func TestGenerate_NameMustMatch_Missing(t *testing.T) {
@@ -100,12 +87,8 @@ func TestGenerate_NameMustMatch_Missing(t *testing.T) {
 		OutputDir:   outputDir,
 	})
 
-	if err != nil {
-		t.Fatalf("unexpected fatal error: %v", err)
-	}
-	if len(errs) == 0 {
-		t.Fatal("expected validation errors for missing name_must_match key, got none")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, errs)
 }
 
 func TestGenerate_NameMustMatch_Mismatch(t *testing.T) {
@@ -124,10 +107,6 @@ func TestGenerate_NameMustMatch_Mismatch(t *testing.T) {
 		OutputDir:   outputDir,
 	})
 
-	if err != nil {
-		t.Fatalf("unexpected fatal error: %v", err)
-	}
-	if len(errs) == 0 {
-		t.Fatal("expected validation error for name_must_match mismatch, got none")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, errs)
 }
