@@ -1658,7 +1658,7 @@ func TestRunStateRename_DestroyCreateCandidates(t *testing.T) {
 		return []byte(renamePlanWithDestroyCreate), nil
 	}
 
-	confirmCandidatesFn = func(candidates []rename.Candidate) ([]rename.RenamePair, error) {
+	confirmCandidatesFn = func(candidates []rename.Candidate, autoConfirm bool) ([]rename.RenamePair, error) {
 		return []rename.RenamePair{
 			{From: "aws_s3_bucket.old_name", To: "aws_s3_bucket.new_name"},
 		}, nil
@@ -1671,6 +1671,74 @@ func TestRunStateRename_DestroyCreateCandidates(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Contains(t, string(data), "from = aws_s3_bucket.old_name")
 	assert.Contains(t, string(data), "to   = aws_s3_bucket.new_name")
+}
+
+func TestRunStateRename_MvApplyAutoConfirm(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRenameFlags(t)
+	saveRenameSeams(t)
+
+	renameMovedFlag = false
+	renameMvFlag = true
+	renameApplyFlag = true
+	renameDirFlag = tmpDir
+	renamePlanFlag = ""
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(renamePlanWithDestroyCreate), nil
+	}
+
+	confirmCalled := false
+	confirmCandidatesFn = func(candidates []rename.Candidate, autoConfirm bool) ([]rename.RenamePair, error) {
+		confirmCalled = true
+		assert.True(t, autoConfirm, "autoConfirm should be true when renameApplyFlag is true")
+		return []rename.RenamePair{
+			{From: "aws_s3_bucket.old_name", To: "aws_s3_bucket.new_name"},
+		}, nil
+	}
+
+	stateMvFn = func(ctx context.Context, workDir, from, to string, useTerragrunt bool) error {
+		assert.Equal(t, "aws_s3_bucket.old_name", from)
+		assert.Equal(t, "aws_s3_bucket.new_name", to)
+		return nil
+	}
+
+	err = runStateRename(stateRenameCmd, nil)
+	require.NoError(t, err)
+	assert.True(t, confirmCalled, "confirmCandidatesFn should have been called")
+}
+
+func TestRunStateRename_MvApplyTerragrunt(t *testing.T) {
+	tmpDir := makeTerragruntFixture(t)
+
+	saveRenameFlags(t)
+	saveRenameSeams(t)
+
+	renameMovedFlag = false
+	renameMvFlag = true
+	renameApplyFlag = true
+	renameDirFlag = tmpDir
+	renamePlanFlag = ""
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(renamePlanWithPreviousAddress), nil
+	}
+
+	var capturedWorkDir string
+	var capturedUseTerragrunt bool
+	stateMvFn = func(ctx context.Context, workDir, from, to string, useTerragrunt bool) error {
+		capturedWorkDir = workDir
+		capturedUseTerragrunt = useTerragrunt
+		return nil
+	}
+
+	err := runStateRename(stateRenameCmd, nil)
+	require.NoError(t, err)
+	assert.True(t, capturedUseTerragrunt, "useTerragrunt should be true when .terragrunt-cache is present")
+	assert.Equal(t, tmpDir, capturedWorkDir, "workDir should be the project root, not the cache directory")
 }
 
 func TestRunStateRename_PlanFileNotFound(t *testing.T) {
@@ -1947,7 +2015,7 @@ func TestRunStateRename_ConfirmCandidatesError(t *testing.T) {
 		return []byte(renamePlanWithDestroyCreate), nil
 	}
 
-	confirmCandidatesFn = func(candidates []rename.Candidate) ([]rename.RenamePair, error) {
+	confirmCandidatesFn = func(candidates []rename.Candidate, autoConfirm bool) ([]rename.RenamePair, error) {
 		return nil, fmt.Errorf("confirm failed")
 	}
 

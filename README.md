@@ -63,6 +63,8 @@ Generate import blocks from a terraform plan and apply them.
 
 Detects resource renames from a Terraform plan and generates `moved {}` blocks or executes `terraform state mv` commands. Preview is the default — use `--apply` to write files or mutate state.
 
+When a single candidate rename is detected, it is automatically confirmed in both preview and apply modes. Ambiguous matches (multiple candidates) are shown as candidates in preview mode; with `--apply`, you are prompted interactively to select the correct rename.
+
 | Flag | Description |
 |------|-------------|
 | `--moved` | Generate `moved {}` blocks (required, or use `--mv`) |
