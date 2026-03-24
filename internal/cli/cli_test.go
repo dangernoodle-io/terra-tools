@@ -2048,3 +2048,299 @@ func TestRunStateRename_MvApply_StateMvError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "state mv failed")
 }
+
+// State remove test constants and helpers
+
+const removePlanWithDeletes = `{
+  "format_version": "1.0",
+  "resource_changes": [
+    {
+      "address": "acme_widget.alpha",
+      "type": "acme_widget",
+      "change": {
+        "actions": ["delete"]
+      }
+    },
+    {
+      "address": "acme_widget.beta",
+      "type": "acme_widget",
+      "change": {
+        "actions": ["delete"]
+      }
+    }
+  ]
+}`
+
+const removePlanNoDeletes = `{
+  "format_version": "1.0",
+  "resource_changes": [
+    {
+      "address": "acme_widget.alpha",
+      "type": "acme_widget",
+      "change": {
+        "actions": ["create"]
+      }
+    }
+  ]
+}`
+
+func saveRemoveFlags(t *testing.T) {
+	oldDir := removeDirFlag
+	oldPlan := removePlanFlag
+	oldApply := removeApplyFlag
+	t.Cleanup(func() {
+		removeDirFlag = oldDir
+		removePlanFlag = oldPlan
+		removeApplyFlag = oldApply
+	})
+}
+
+func saveRemoveSeams(t *testing.T) {
+	oldGeneratePlan := generatePlanJSONFn
+	oldCheckVersion := checkVersionFn
+	oldCheckTgVersion := checkTerragruntVersionFn
+	oldCheckInit := checkInitFn
+	oldStateRm := stateRmFn
+	t.Cleanup(func() {
+		generatePlanJSONFn = oldGeneratePlan
+		checkVersionFn = oldCheckVersion
+		checkTerragruntVersionFn = oldCheckTgVersion
+		checkInitFn = oldCheckInit
+		stateRmFn = oldStateRm
+	})
+	checkVersionFn = func(ctx context.Context) error { return nil }
+	checkTerragruntVersionFn = func(ctx context.Context) error { return nil }
+	checkInitFn = func(workDir string) error { return nil }
+}
+
+// State remove tests
+
+func TestRunStateRemove_Preview(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+	removeApplyFlag = false
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(removePlanWithDeletes), nil
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.NoError(t, err)
+}
+
+func TestRunStateRemove_Apply(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+	removeApplyFlag = true
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(removePlanWithDeletes), nil
+	}
+
+	var rmCalls []string
+	stateRmFn = func(ctx context.Context, workDir, addr string, useTerragrunt bool) error {
+		rmCalls = append(rmCalls, addr)
+		return nil
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.NoError(t, err)
+	require.Len(t, rmCalls, 2)
+	assert.Equal(t, "acme_widget.alpha", rmCalls[0])
+	assert.Equal(t, "acme_widget.beta", rmCalls[1])
+}
+
+func TestRunStateRemove_NoTargets(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+	removeApplyFlag = false
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(removePlanNoDeletes), nil
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.NoError(t, err)
+}
+
+func TestRunStateRemove_PlanFromFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	planPath := filepath.Join(tmpDir, "plan.json")
+	err = os.WriteFile(planPath, []byte(removePlanWithDeletes), 0644)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = planPath
+	removeApplyFlag = false
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.NoError(t, err)
+}
+
+func TestRunStateRemove_PlanFileNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = "/nonexistent/plan.json"
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read plan")
+}
+
+func TestRunStateRemove_VersionError(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+
+	checkVersionFn = func(ctx context.Context) error {
+		return fmt.Errorf("version check failed")
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "version check failed")
+}
+
+func TestRunStateRemove_CheckInitError(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+
+	checkInitFn = func(workDir string) error {
+		return fmt.Errorf("init check failed")
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "init check failed")
+}
+
+func TestRunStateRemove_GeneratePlanError(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return nil, fmt.Errorf("plan generation failed")
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "plan generation failed")
+}
+
+func TestRunStateRemove_ParsePlanError(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(`not valid json {{{`), nil
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parse plan")
+}
+
+func TestRunStateRemove_ApplyError(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(tmpDir, ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = tmpDir
+	removePlanFlag = ""
+	removeApplyFlag = true
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(removePlanWithDeletes), nil
+	}
+
+	stateRmFn = func(ctx context.Context, workDir, addr string, useTerragrunt bool) error {
+		return fmt.Errorf("state rm failed")
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "state rm failed")
+}
+
+func TestRunStateRemove_Terragrunt(t *testing.T) {
+	dir := t.TempDir()
+	err := os.MkdirAll(filepath.Join(dir, ".terragrunt-cache", "abc", "def", ".terraform"), 0755)
+	require.NoError(t, err)
+
+	saveRemoveFlags(t)
+	saveRemoveSeams(t)
+
+	removeDirFlag = dir
+	removePlanFlag = ""
+	removeApplyFlag = false
+
+	generatePlanJSONFn = func(ctx context.Context, workDir string, useTerragrunt bool) ([]byte, error) {
+		return []byte(removePlanWithDeletes), nil
+	}
+
+	err = runStateRemove(stateRemoveCmd, nil)
+	require.NoError(t, err)
+}
