@@ -11,3 +11,34 @@ jobs:
   verify:
     uses: dangernoodle-io/.github/.github/workflows/go-build.yml@main
     secrets: inherit
+
+  acceptance:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      ACC_TERRANOODLE: "1"
+      TERRAFORM_VERSION: "1.14.7"
+      TERRAGRUNT_VERSION: "0.99.4"
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install terraform
+        run: |
+          curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
+          unzip -o terraform.zip -d "$GITHUB_WORKSPACE/bin"
+          echo "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+
+      - name: Install terragrunt
+        run: |
+          curl -fsSL "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_amd64" -o "$GITHUB_WORKSPACE/bin/terragrunt"
+          chmod +x "$GITHUB_WORKSPACE/bin/terragrunt"
+
+      - run: go mod download
+
+      - name: Run acceptance tests
+        run: go test -v -run "TestAcc" -timeout=300s ./...
