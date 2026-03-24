@@ -8,7 +8,7 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"dangernoodle.io/terratools/internal/state/config"
+	"dangernoodle.io/terranoodle/internal/state/config"
 )
 
 // Pick extracts a string value from an API response using the pick expression

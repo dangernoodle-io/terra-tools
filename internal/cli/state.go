@@ -11,15 +11,15 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/spf13/cobra"
 
-	"dangernoodle.io/terratools/internal/output"
-	"dangernoodle.io/terratools/internal/state/config"
-	"dangernoodle.io/terratools/internal/state/importer"
-	"dangernoodle.io/terratools/internal/state/plan"
-	"dangernoodle.io/terratools/internal/state/prompt"
-	"dangernoodle.io/terratools/internal/state/resolver"
-	"dangernoodle.io/terratools/internal/state/scaffold"
-	"dangernoodle.io/terratools/internal/ui"
-	"dangernoodle.io/terratools/internal/version"
+	"dangernoodle.io/terranoodle/internal/output"
+	"dangernoodle.io/terranoodle/internal/state/config"
+	"dangernoodle.io/terranoodle/internal/state/importer"
+	"dangernoodle.io/terranoodle/internal/state/plan"
+	"dangernoodle.io/terranoodle/internal/state/prompt"
+	"dangernoodle.io/terranoodle/internal/state/resolver"
+	"dangernoodle.io/terranoodle/internal/state/scaffold"
+	"dangernoodle.io/terranoodle/internal/ui"
+	"dangernoodle.io/terranoodle/internal/version"
 )
 
 var stateCmd = &cobra.Command{

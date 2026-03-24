@@ -1,4 +1,4 @@
-module dangernoodle.io/terratools
+module dangernoodle.io/terranoodle
 
 go 1.26.1
 

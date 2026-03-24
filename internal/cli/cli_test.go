@@ -835,7 +835,7 @@ func TestRootCmd_Execute(t *testing.T) {
 	oldArgs := os.Args
 	t.Cleanup(func() { os.Args = oldArgs })
 
-	os.Args = []string{"terratools", "--version"}
+	os.Args = []string{"terranoodle", "--version"}
 
 	err := Execute()
 	require.NoError(t, err)

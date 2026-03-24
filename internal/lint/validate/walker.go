@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"dangernoodle.io/terratools/internal/hclutils"
+	"dangernoodle.io/terranoodle/internal/hclutils"
 )
 
 // Dir validates terragrunt.hcl and/or terragrunt.stack.hcl in a single directory.
