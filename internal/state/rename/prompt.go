@@ -6,12 +6,15 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"dangernoodle.io/terranoodle/internal/output"
 )
 
 // ConfirmCandidates presents each Candidate interactively and returns
 // the user-confirmed RenamePairs. Creates that are claimed by one destroy
-// are removed from subsequent prompts.
-func ConfirmCandidates(r io.Reader, w io.Writer, candidates []Candidate) ([]RenamePair, error) {
+// are removed from subsequent prompts. When autoConfirm is true and there is
+// exactly one available create, the rename is auto-confirmed without reading stdin.
+func ConfirmCandidates(r io.Reader, w io.Writer, candidates []Candidate, autoConfirm bool) ([]RenamePair, error) {
 	scanner := bufio.NewScanner(r)
 	consumed := make(map[string]bool)
 	var pairs []RenamePair
@@ -29,16 +32,30 @@ func ConfirmCandidates(r io.Reader, w io.Writer, candidates []Candidate) ([]Rena
 		}
 
 		if len(available) == 1 {
-			fmt.Fprintf(w, "\nRename %s -> %s? [y/N] ", c.Destroy.Address, available[0])
-			if !scanner.Scan() {
-				break
-			}
-			answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
-			if answer == "y" || answer == "yes" {
+			if autoConfirm {
+				fmt.Fprintf(w, "%s %s -> %s\n", output.Bold("Auto-confirmed:"), c.Destroy.Address, available[0])
 				pairs = append(pairs, RenamePair{From: c.Destroy.Address, To: available[0]})
 				consumed[available[0]] = true
+			} else {
+				fmt.Fprintf(w, "\nRename %s -> %s? [y/N] ", c.Destroy.Address, available[0])
+				if !scanner.Scan() {
+					break
+				}
+				answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+				if answer == "y" || answer == "yes" {
+					pairs = append(pairs, RenamePair{From: c.Destroy.Address, To: available[0]})
+					consumed[available[0]] = true
+				}
 			}
 		} else {
+			if autoConfirm {
+				fmt.Fprintf(w, "\n%s %s could be renamed to:\n", output.Bold("Ambiguous:"), c.Destroy.Address)
+				for i, addr := range available {
+					fmt.Fprintf(w, "  [%d] %s\n", i+1, addr)
+				}
+				fmt.Fprintf(w, "  (use --apply to choose interactively)\n")
+				continue
+			}
 			fmt.Fprintf(w, "\nWhich resource is the rename of %s?\n", c.Destroy.Address)
 			for i, addr := range available {
 				fmt.Fprintf(w, "  [%d] %s\n", i+1, addr)

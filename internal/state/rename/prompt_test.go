@@ -26,7 +26,7 @@ func TestConfirmCandidates_SingleCreate_Yes(t *testing.T) {
 	input := strings.NewReader("y\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	require.Len(t, pairs, 1)
 	assert.Equal(t, "aws_s3_bucket.old", pairs[0].From)
@@ -38,7 +38,7 @@ func TestConfirmCandidates_SingleCreate_No(t *testing.T) {
 	input := strings.NewReader("n\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	assert.Empty(t, pairs)
 }
@@ -48,7 +48,7 @@ func TestConfirmCandidates_MultipleCreates_SelectSecond(t *testing.T) {
 	input := strings.NewReader("2\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	require.Len(t, pairs, 1)
 	assert.Equal(t, "aws_s3_bucket.old", pairs[0].From)
@@ -60,7 +60,7 @@ func TestConfirmCandidates_MultipleCreates_Skip(t *testing.T) {
 	input := strings.NewReader("s\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	assert.Empty(t, pairs)
 }
@@ -70,7 +70,7 @@ func TestConfirmCandidates_MultipleCreates_InvalidChoice(t *testing.T) {
 	input := strings.NewReader("9\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	assert.Empty(t, pairs)
 	assert.Contains(t, output.String(), "skipping")
@@ -81,7 +81,7 @@ func TestConfirmCandidates_EOF(t *testing.T) {
 	input := strings.NewReader("")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	assert.Empty(t, pairs)
 }
@@ -95,7 +95,7 @@ func TestConfirmCandidates_ConsumedCreatesRemoved(t *testing.T) {
 	input := strings.NewReader("y\n")
 	var output bytes.Buffer
 
-	pairs, err := ConfirmCandidates(input, &output, candidates)
+	pairs, err := ConfirmCandidates(input, &output, candidates, false)
 	require.NoError(t, err)
 	// First candidate claims new_x, second candidate has no available creates
 	require.Len(t, pairs, 1)
@@ -105,7 +105,33 @@ func TestConfirmCandidates_ConsumedCreatesRemoved(t *testing.T) {
 
 func TestConfirmCandidates_Empty(t *testing.T) {
 	var output bytes.Buffer
-	pairs, err := ConfirmCandidates(strings.NewReader(""), &output, nil)
+	pairs, err := ConfirmCandidates(strings.NewReader(""), &output, nil, false)
 	require.NoError(t, err)
 	assert.Empty(t, pairs)
+}
+
+func TestConfirmCandidates_AutoConfirmSingleCreate(t *testing.T) {
+	candidates := []Candidate{makeCandidate("aws_s3_bucket.old", "aws_s3_bucket.new")}
+	input := strings.NewReader("") // empty reader - should not be read from
+	var output bytes.Buffer
+
+	pairs, err := ConfirmCandidates(input, &output, candidates, true)
+	require.NoError(t, err)
+	require.Len(t, pairs, 1)
+	assert.Equal(t, "aws_s3_bucket.old", pairs[0].From)
+	assert.Equal(t, "aws_s3_bucket.new", pairs[0].To)
+	assert.Contains(t, output.String(), "Auto-confirmed")
+}
+
+func TestConfirmCandidates_AutoConfirmMultipleCreates(t *testing.T) {
+	// With autoConfirm=true, multiple creates should show ambiguous message, not prompt
+	candidates := []Candidate{makeCandidate("aws_s3_bucket.old", "aws_s3_bucket.new_a", "aws_s3_bucket.new_b")}
+	input := strings.NewReader("")
+	var output bytes.Buffer
+
+	pairs, err := ConfirmCandidates(input, &output, candidates, true)
+	require.NoError(t, err)
+	assert.Empty(t, pairs)
+	assert.Contains(t, output.String(), "Ambiguous: aws_s3_bucket.old could be renamed to:")
+	assert.Contains(t, output.String(), "use --apply to choose interactively")
 }

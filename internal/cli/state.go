@@ -76,8 +76,8 @@ var (
 		}
 		return rename.StateMv(ctx, workDir, from, to)
 	}
-	confirmCandidatesFn = func(candidates []rename.Candidate) ([]rename.RenamePair, error) {
-		return rename.ConfirmCandidates(os.Stdin, os.Stdout, candidates)
+	confirmCandidatesFn = func(candidates []rename.Candidate, autoConfirm bool) ([]rename.RenamePair, error) {
+		return rename.ConfirmCandidates(os.Stdin, os.Stdout, candidates, autoConfirm)
 	}
 )
 
@@ -250,10 +250,14 @@ func runStateImport(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Generate plan.
+	// Generate plan. For terragrunt, run from project dir, not cache dir.
+	planDir := workDir
+	if useTerragrunt {
+		planDir = dir
+	}
 	var planJSON []byte
 	stopSpinner := ui.Spinner("Generating plan...")
-	planJSON, err = generatePlanJSONFn(ctx, workDir, useTerragrunt)
+	planJSON, err = generatePlanJSONFn(ctx, planDir, useTerragrunt)
 	stopSpinner()
 	if err != nil {
 		return err
@@ -430,10 +434,14 @@ func runStateScaffold(cmd *cobra.Command, args []string) error {
 		workDir = dir
 	}
 
-	// Generate plan.
+	// Generate plan. For terragrunt, run from project dir, not cache dir.
+	planDir := workDir
+	if useTerragrunt {
+		planDir = dir
+	}
 	var planJSON []byte
 	stopSpinner := ui.Spinner("Generating plan...")
-	planJSON, err = generatePlanJSONFn(ctx, workDir, useTerragrunt)
+	planJSON, err = generatePlanJSONFn(ctx, planDir, useTerragrunt)
 	stopSpinner()
 	if err != nil {
 		return err
@@ -529,8 +537,13 @@ func runStateRename(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("state rename: read plan: %w", err)
 		}
 	} else {
+		// For terragrunt, run plan from project dir (dir), not cache dir (workDir).
+		planDir := workDir
+		if useTerragrunt {
+			planDir = dir
+		}
 		stop := ui.Spinner("Generating plan...")
-		planJSON, err = generatePlanJSONFn(ctx, workDir, useTerragrunt)
+		planJSON, err = generatePlanJSONFn(ctx, planDir, useTerragrunt)
 		stop()
 		if err != nil {
 			return err
@@ -547,7 +560,7 @@ func runStateRename(cmd *cobra.Command, args []string) error {
 
 	var confirmed []rename.RenamePair
 	if len(candidates) > 0 {
-		confirmed, err = confirmCandidatesFn(candidates)
+		confirmed, err = confirmCandidatesFn(candidates, true)
 		if err != nil {
 			return err
 		}
@@ -580,14 +593,20 @@ func runStateRename(cmd *cobra.Command, args []string) error {
 			binary = "terragrunt"
 		}
 		for _, pair := range pairs {
-			fmt.Printf("%s state mv %s %s\n", binary, pair.From, pair.To)
+			msg := fmt.Sprintf("%s state mv %s %s", binary, output.Bold("%s", pair.From), output.Bold("%s", pair.To))
+			fmt.Println(msg)
 		}
 		return nil
 	}
 
+	// For terragrunt, run state mv from project dir (dir), not cache dir (workDir).
+	mvDir := workDir
+	if useTerragrunt {
+		mvDir = dir
+	}
 	for _, pair := range pairs {
 		stop := ui.Spinner(fmt.Sprintf("Moving %s -> %s", pair.From, pair.To))
-		err = stateMvFn(ctx, workDir, pair.From, pair.To, useTerragrunt)
+		err = stateMvFn(ctx, mvDir, pair.From, pair.To, useTerragrunt)
 		stop()
 		if err != nil {
 			return err
