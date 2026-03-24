@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"dangernoodle.io/terratools/internal/hclutils"
+	"dangernoodle.io/terranoodle/internal/hclutils"
 )
 
 // Fetch retrieves a catalog from the given source (git URL or local path)

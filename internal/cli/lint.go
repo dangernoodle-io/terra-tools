@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"dangernoodle.io/terratools/internal/lint/report"
-	"dangernoodle.io/terratools/internal/lint/validate"
-	"dangernoodle.io/terratools/internal/output"
+	"dangernoodle.io/terranoodle/internal/lint/report"
+	"dangernoodle.io/terranoodle/internal/lint/validate"
+	"dangernoodle.io/terranoodle/internal/output"
 )
 
 var (

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"dangernoodle.io/terratools/internal/state/resolver"
+	"dangernoodle.io/terranoodle/internal/state/resolver"
 )
 
 // GenerateImportsFile returns the contents of an imports.tf file containing

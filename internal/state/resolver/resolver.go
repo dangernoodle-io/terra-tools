@@ -8,7 +8,7 @@ import (
 
 	tfjson "github.com/hashicorp/terraform-json"
 
-	"dangernoodle.io/terratools/internal/state/config"
+	"dangernoodle.io/terranoodle/internal/state/config"
 )
 
 // ImportEntry holds the resolved import address and ID for a single

@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"dangernoodle.io/terratools/internal/catalog/catalog"
+	"dangernoodle.io/terranoodle/internal/catalog/catalog"
 )
 
 // InjectDependencies modifies generated terragrunt.hcl content to add dependency

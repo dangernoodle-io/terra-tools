@@ -106,7 +106,7 @@ func GeneratePlan(ctx context.Context, workDir string, verbose bool) ([]byte, er
 		return nil, err
 	}
 
-	tmpFile, err := os.CreateTemp("", "terratools-plan-*")
+	tmpFile, err := os.CreateTemp("", "terranoodle-plan-*")
 	if err != nil {
 		return nil, fmt.Errorf("importer: terraform plan: %w", err)
 	}
@@ -140,7 +140,7 @@ func TerragruntGeneratePlan(ctx context.Context, workDir string, verbose bool) (
 		return nil, err
 	}
 
-	tmpFile, err := os.CreateTemp("", "terratools-plan-*")
+	tmpFile, err := os.CreateTemp("", "terranoodle-plan-*")
 	if err != nil {
 		return nil, fmt.Errorf("importer: terragrunt plan: %w", err)
 	}

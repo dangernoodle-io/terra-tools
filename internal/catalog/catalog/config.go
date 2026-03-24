@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"dangernoodle.io/terratools/internal/output"
+	"dangernoodle.io/terranoodle/internal/output"
 )
 
 // CatalogConfig holds configuration from the catalog's terra-generate.hcl file.
