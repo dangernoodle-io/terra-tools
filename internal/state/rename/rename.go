@@ -12,7 +12,13 @@ type RenamePair struct {
 	To   string
 }
 
-// Candidate represents a destroyed resource with potential create matches of the same type.
+// typeNameKey groups resources by both type and name.
+type typeNameKey struct {
+	Type string
+	Name string
+}
+
+// Candidate represents a destroyed resource with potential create matches of the same type and name.
 type Candidate struct {
 	Destroy *tfjson.ResourceChange
 	Creates []*tfjson.ResourceChange
@@ -36,7 +42,7 @@ func DetectFromPlan(p *tfjson.Plan) []RenamePair {
 	return pairs
 }
 
-// MatchDestroyCreate finds destroy/create pairs of the same resource type as
+// MatchDestroyCreate finds destroy/create pairs of the same resource type and name as
 // rename candidates. It excludes resources that already have PreviousAddress set
 // (those are definite renames handled by DetectFromPlan).
 func MatchDestroyCreate(p *tfjson.Plan) []Candidate {
@@ -49,26 +55,27 @@ func MatchDestroyCreate(p *tfjson.Plan) []Candidate {
 		}
 	}
 
-	// Group destroys and creates by type.
-	destroysByType := make(map[string][]*tfjson.ResourceChange)
-	createsByType := make(map[string][]*tfjson.ResourceChange)
+	// Group destroys and creates by type and name.
+	destroysByKey := make(map[typeNameKey][]*tfjson.ResourceChange)
+	createsByKey := make(map[typeNameKey][]*tfjson.ResourceChange)
 
 	for _, rc := range p.ResourceChanges {
 		if rc.Change == nil || knownMoved[rc.Address] {
 			continue
 		}
+		key := typeNameKey{Type: rc.Type, Name: rc.Name}
 		if rc.Change.Actions.Delete() {
-			destroysByType[rc.Type] = append(destroysByType[rc.Type], rc)
+			destroysByKey[key] = append(destroysByKey[key], rc)
 		}
 		if rc.Change.Actions.Create() {
-			createsByType[rc.Type] = append(createsByType[rc.Type], rc)
+			createsByKey[key] = append(createsByKey[key], rc)
 		}
 	}
 
-	// Build candidates: for each destroy, find creates of the same type.
+	// Build candidates: for each destroy, find creates of the same type and name.
 	var candidates []Candidate
-	for typ, destroys := range destroysByType {
-		creates, ok := createsByType[typ]
+	for key, destroys := range destroysByKey {
+		creates, ok := createsByKey[key]
 		if !ok || len(creates) == 0 {
 			continue
 		}

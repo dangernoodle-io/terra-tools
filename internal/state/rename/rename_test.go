@@ -132,6 +132,60 @@ const planWithDifferentTypeDestroyCreate = `{
   ]
 }`
 
+const planWithSameTypeMultipleName = `{
+  "format_version": "1.0",
+  "resource_changes": [
+    {
+      "address": "acme_badge.coverage[\"old-proj\"]",
+      "type": "acme_badge",
+      "name": "coverage",
+      "change": {"actions": ["delete"]}
+    },
+    {
+      "address": "acme_badge.coverage[\"new-proj\"]",
+      "type": "acme_badge",
+      "name": "coverage",
+      "change": {"actions": ["create"]}
+    },
+    {
+      "address": "acme_badge.develop[\"new-proj\"]",
+      "type": "acme_badge",
+      "name": "develop",
+      "change": {"actions": ["create"]}
+    },
+    {
+      "address": "acme_badge.main[\"new-proj\"]",
+      "type": "acme_badge",
+      "name": "main",
+      "change": {"actions": ["create"]}
+    }
+  ]
+}`
+
+const planWithSameTypeAndNameMultipleCreates = `{
+  "format_version": "1.0",
+  "resource_changes": [
+    {
+      "address": "acme_badge.coverage[\"a\"]",
+      "type": "acme_badge",
+      "name": "coverage",
+      "change": {"actions": ["delete"]}
+    },
+    {
+      "address": "acme_badge.coverage[\"b\"]",
+      "type": "acme_badge",
+      "name": "coverage",
+      "change": {"actions": ["create"]}
+    },
+    {
+      "address": "acme_badge.coverage[\"c\"]",
+      "type": "acme_badge",
+      "name": "coverage",
+      "change": {"actions": ["create"]}
+    }
+  ]
+}`
+
 func TestDetectFromPlan_WithPreviousAddress(t *testing.T) {
 	p := parsePlan(t, planWithPreviousAddress)
 	pairs := DetectFromPlan(p)
@@ -194,4 +248,27 @@ func TestMatchDestroyCreate_DifferentTypes(t *testing.T) {
 func TestMatchDestroyCreate_EmptyPlan(t *testing.T) {
 	candidates := MatchDestroyCreate(&tfjson.Plan{})
 	assert.Empty(t, candidates)
+}
+
+func TestMatchDestroyCreate_SameTypeDifferentName(t *testing.T) {
+	p := parsePlan(t, planWithSameTypeMultipleName)
+	candidates := MatchDestroyCreate(p)
+
+	// Should have exactly 1 candidate (the coverage destroy)
+	// with exactly 1 create (coverage["new-proj"]), NOT 3 creates
+	require.Len(t, candidates, 1)
+	assert.Equal(t, "acme_badge.coverage[\"old-proj\"]", candidates[0].Destroy.Address)
+	require.Len(t, candidates[0].Creates, 1)
+	assert.Equal(t, "acme_badge.coverage[\"new-proj\"]", candidates[0].Creates[0].Address)
+}
+
+func TestMatchDestroyCreate_SameTypeNameMultipleCreates(t *testing.T) {
+	p := parsePlan(t, planWithSameTypeAndNameMultipleCreates)
+	candidates := MatchDestroyCreate(p)
+
+	// Should have exactly 1 candidate (the coverage destroy)
+	// with exactly 2 creates (both coverage name)
+	require.Len(t, candidates, 1)
+	assert.Equal(t, "acme_badge.coverage[\"a\"]", candidates[0].Destroy.Address)
+	require.Len(t, candidates[0].Creates, 2)
 }
