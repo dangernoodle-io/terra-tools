@@ -26,10 +26,10 @@ func TestModuleDir_MissingDescription(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
 		"missing-description":      {Enabled: true},
 		"non-snake-case":           {Enabled: false},
-		"unused-variable":          {Enabled: false},
+		"unused-variables":         {Enabled: false},
 		"optional-without-default": {Enabled: false},
 		"allowed-filenames":        {Enabled: false},
-		"versions-tf":              {Enabled: false},
+		"has-versions-tf":          {Enabled: false},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("module-quality"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -43,10 +43,10 @@ func TestModuleDir_NonSnakeCase(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
 		"missing-description":      {Enabled: false},
 		"non-snake-case":           {Enabled: true},
-		"unused-variable":          {Enabled: false},
+		"unused-variables":         {Enabled: false},
 		"optional-without-default": {Enabled: false},
 		"allowed-filenames":        {Enabled: false},
-		"versions-tf":              {Enabled: false},
+		"has-versions-tf":          {Enabled: false},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("module-quality"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -60,10 +60,10 @@ func TestModuleDir_BothRulesEnabled(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
 		"missing-description":      {Enabled: true},
 		"non-snake-case":           {Enabled: true},
-		"unused-variable":          {Enabled: false},
+		"unused-variables":         {Enabled: false},
 		"optional-without-default": {Enabled: false},
 		"allowed-filenames":        {Enabled: false},
-		"versions-tf":              {Enabled: false},
+		"has-versions-tf":          {Enabled: false},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("module-quality"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -78,10 +78,10 @@ func TestModuleDir_AllClean(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
 		"missing-description":      {Enabled: true},
 		"non-snake-case":           {Enabled: true},
-		"unused-variable":          {Enabled: false},
+		"unused-variables":         {Enabled: false},
 		"optional-without-default": {Enabled: false},
 		"allowed-filenames":        {Enabled: false},
-		"versions-tf":              {Enabled: false},
+		"has-versions-tf":          {Enabled: false},
 	}}
 	errs, err := ModuleDir(dir, Options{Config: cfg})
 	require.NoError(t, err)
@@ -101,11 +101,11 @@ func TestModuleDir_NonexistentDir(t *testing.T) {
 
 func TestModuleDir_UnusedVariable(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"unused-variable":   {Enabled: true},
+		"unused-variables":  {Enabled: true},
 		"allowed-filenames": {Enabled: false},
-		"versions-tf":       {Enabled: false},
+		"has-versions-tf":   {Enabled: false},
 	}}
-	errs, err := ModuleDir(moduleDirTestdata("unused-variable"), Options{Config: cfg})
+	errs, err := ModuleDir(moduleDirTestdata("unused-variables"), Options{Config: cfg})
 	require.NoError(t, err)
 	require.Len(t, errs, 1)
 	assert.Equal(t, UnusedVariable, errs[0].Kind)
@@ -114,7 +114,7 @@ func TestModuleDir_UnusedVariable(t *testing.T) {
 
 func TestModuleDir_UnusedVariable_DisabledByDefault(t *testing.T) {
 	cfg := config.Default()
-	errs, err := ModuleDir(moduleDirTestdata("unused-variable"), Options{Config: &cfg.Lint})
+	errs, err := ModuleDir(moduleDirTestdata("unused-variables"), Options{Config: &cfg.Lint})
 	require.NoError(t, err)
 	for _, e := range errs {
 		assert.NotEqual(t, UnusedVariable, e.Kind)
@@ -124,9 +124,9 @@ func TestModuleDir_UnusedVariable_DisabledByDefault(t *testing.T) {
 func TestModuleDir_OptionalWithoutDefault(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
 		"optional-without-default": {Enabled: true},
-		"unused-variable":          {Enabled: false},
+		"unused-variables":         {Enabled: false},
 		"allowed-filenames":        {Enabled: false},
-		"versions-tf":              {Enabled: false},
+		"has-versions-tf":          {Enabled: false},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("optional-no-default"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestModuleDir_AllowedFilenames_DisabledByDefault(t *testing.T) {
 
 func TestModuleDir_VersionsTF_Missing(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-missing"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -213,7 +213,7 @@ func TestModuleDir_VersionsTF_Missing(t *testing.T) {
 
 func TestModuleDir_VersionsTF_NoTerraformBlock(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-no-terraform"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestModuleDir_VersionsTF_NoTerraformBlock(t *testing.T) {
 
 func TestModuleDir_VersionsTF_MissingSource(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-invalid"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestModuleDir_VersionsTF_MissingSource(t *testing.T) {
 
 func TestModuleDir_VersionsTF_MissingVersion(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-invalid"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -258,7 +258,7 @@ func TestModuleDir_VersionsTF_MissingVersion(t *testing.T) {
 
 func TestModuleDir_VersionsTF_Duplicate(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-duplicate"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -274,7 +274,7 @@ func TestModuleDir_VersionsTF_Duplicate(t *testing.T) {
 
 func TestModuleDir_VersionsTF_Valid(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"versions-tf": {Enabled: true},
+		"has-versions-tf": {Enabled: true},
 	}}
 	errs, err := ModuleDir(moduleDirTestdata("versions-tf-valid"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -329,7 +329,7 @@ func TestModuleDir_ProviderConstraintStyle_Pessimistic(t *testing.T) {
 					"style": "pessimistic",
 				},
 			},
-			"versions-tf": {Enabled: true},
+			"has-versions-tf": {Enabled: true},
 		},
 	}
 	errs, err := ModuleDir(moduleDirTestdata("constraint-style-bad"), Options{Config: cfg})
@@ -353,7 +353,7 @@ func TestModuleDir_ProviderConstraintStyle_PessimisticMajorDepth(t *testing.T) {
 					"depth": "major",
 				},
 			},
-			"versions-tf": {Enabled: true},
+			"has-versions-tf": {Enabled: true},
 		},
 	}
 	errs, err := ModuleDir(moduleDirTestdata("constraint-style-good"), Options{Config: cfg})
@@ -377,7 +377,7 @@ func TestModuleDir_ProviderConstraintStyle_PessimisticMinorDepthFails(t *testing
 					"depth": "minor",
 				},
 			},
-			"versions-tf": {Enabled: true},
+			"has-versions-tf": {Enabled: true},
 		},
 	}
 	errs, err := ModuleDir(moduleDirTestdata("constraint-style-good"), Options{Config: cfg})
@@ -400,7 +400,7 @@ func TestModuleDir_ProviderConstraintStyle_Exact(t *testing.T) {
 					"style": "exact",
 				},
 			},
-			"versions-tf": {Enabled: true},
+			"has-versions-tf": {Enabled: true},
 		},
 	}
 	errs, err := ModuleDir(moduleDirTestdata("constraint-style-exact"), Options{Config: cfg})
@@ -423,7 +423,7 @@ func TestModuleDir_ProviderConstraintStyle_ExactFails(t *testing.T) {
 					"style": "exact",
 				},
 			},
-			"versions-tf": {Enabled: true},
+			"has-versions-tf": {Enabled: true},
 		},
 	}
 	errs, err := ModuleDir(moduleDirTestdata("constraint-style-good"), Options{Config: cfg})

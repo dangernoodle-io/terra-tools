@@ -217,12 +217,12 @@ inputs = {}
 		ExcludeDirs: []string{"excluded-dir"},
 		Rules: map[string]config.RuleConfig{
 			"missing-required":         {Enabled: true},
-			"extra-input":              {Enabled: true},
+			"extra-inputs":             {Enabled: true},
 			"type-mismatch":            {Enabled: true},
-			"unused-variable":          {Enabled: false},
+			"unused-variables":         {Enabled: false},
 			"optional-without-default": {Enabled: false},
 			"allowed-filenames":        {Enabled: false},
-			"versions-tf":              {Enabled: false},
+			"has-versions-tf":          {Enabled: false},
 		},
 	}
 	opts := Options{Config: cfg}

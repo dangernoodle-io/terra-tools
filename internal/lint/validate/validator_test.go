@@ -56,7 +56,7 @@ func TestFile_MissingRequiredWithPartialTFVar(t *testing.T) {
 }
 
 func TestFile_ExtraInput(t *testing.T) {
-	errs, err := File(testdataPath("extra-input"))
+	errs, err := File(testdataPath("extra-inputs"))
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
@@ -174,7 +174,7 @@ func TestFile_IncludeMergedInputs(t *testing.T) {
 }
 
 func TestFile_TfVarsExtraInput(t *testing.T) {
-	errs, err := File(testdataPath("tfvars-extra-input"))
+	errs, err := File(testdataPath("tfvars-extra-inputs"))
 	require.NoError(t, err)
 	require.Len(t, errs, 1)
 
@@ -216,7 +216,7 @@ func TestTerraformDir_MissingRequired(t *testing.T) {
 }
 
 func TestTerraformDir_ExtraInput(t *testing.T) {
-	errs, err := TerraformDir(tfTestdataDir("tf-extra-input"))
+	errs, err := TerraformDir(tfTestdataDir("tf-extra-inputs"))
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
@@ -367,7 +367,7 @@ func TestFile_RuleFiltering(t *testing.T) {
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
 			"missing-required": {Enabled: false},
-			"extra-input":      {Enabled: true},
+			"extra-inputs":     {Enabled: true},
 			"type-mismatch":    {Enabled: true},
 		},
 	}
@@ -387,7 +387,7 @@ func TestFile_RuleFilteringMultipleKinds(t *testing.T) {
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
 			"missing-required": {Enabled: false},
-			"extra-input":      {Enabled: true},
+			"extra-inputs":     {Enabled: true},
 			"type-mismatch":    {Enabled: true},
 		},
 	}
@@ -509,7 +509,7 @@ func TestApplyAllowList(t *testing.T) {
 
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
-			"extra-input": {Enabled: true, Options: map[string]interface{}{
+			"extra-inputs": {Enabled: true, Options: map[string]interface{}{
 				"allow": []interface{}{"environment"},
 			}},
 		},
@@ -535,13 +535,13 @@ func TestApplyAllowList_NoPatterns(t *testing.T) {
 func TestFile_ExtraInputAllow(t *testing.T) {
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
-			"extra-input": {Enabled: true, Options: map[string]interface{}{
+			"extra-inputs": {Enabled: true, Options: map[string]interface{}{
 				"allow": []interface{}{"environment"},
 			}},
 		},
 	}
 	opts := Options{Config: cfg}
-	errs, err := File(testdataPath("extra-input"), opts)
+	errs, err := File(testdataPath("extra-inputs"), opts)
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
@@ -559,13 +559,13 @@ func TestFile_ExtraInputAllow(t *testing.T) {
 func TestFile_ExtraInputAllowGlob(t *testing.T) {
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
-			"extra-input": {Enabled: true, Options: map[string]interface{}{
+			"extra-inputs": {Enabled: true, Options: map[string]interface{}{
 				"allow": []interface{}{"bogus_*"},
 			}},
 		},
 	}
 	opts := Options{Config: cfg}
-	errs, err := File(testdataPath("extra-input"), opts)
+	errs, err := File(testdataPath("extra-inputs"), opts)
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
@@ -581,13 +581,13 @@ func TestFile_ExtraInputAllowGlob(t *testing.T) {
 func TestFile_ExtraInputAllowNoMatch(t *testing.T) {
 	cfg := &config.LintConfig{
 		Rules: map[string]config.RuleConfig{
-			"extra-input": {Enabled: true, Options: map[string]interface{}{
+			"extra-inputs": {Enabled: true, Options: map[string]interface{}{
 				"allow": []interface{}{"other"},
 			}},
 		},
 	}
 	opts := Options{Config: cfg}
-	errs, err := File(testdataPath("extra-input"), opts)
+	errs, err := File(testdataPath("extra-inputs"), opts)
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
@@ -747,9 +747,9 @@ func TestFile_MissingIncludeExpose_DisabledByDefault(t *testing.T) {
 
 func TestFile_NoProviderBlock(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"no-provider-block": {Enabled: true},
+		"no-tg-provider-blocks": {Enabled: true},
 	}}
-	errs, err := File(testdataPath("no-provider-block"), Options{Config: cfg})
+	errs, err := File(testdataPath("no-tg-provider-blocks"), Options{Config: cfg})
 	require.NoError(t, err)
 	var providerErrs []Error
 	for _, e := range errs {
@@ -763,7 +763,7 @@ func TestFile_NoProviderBlock(t *testing.T) {
 
 func TestFile_NoProviderBlock_Clean(t *testing.T) {
 	cfg := &config.LintConfig{Rules: map[string]config.RuleConfig{
-		"no-provider-block": {Enabled: true},
+		"no-tg-provider-blocks": {Enabled: true},
 	}}
 	errs, err := File(testdataPath("simple-valid"), Options{Config: cfg})
 	require.NoError(t, err)
@@ -774,7 +774,7 @@ func TestFile_NoProviderBlock_Clean(t *testing.T) {
 
 func TestFile_NoProviderBlock_DisabledByDefault(t *testing.T) {
 	cfg := config.Default()
-	errs, err := File(testdataPath("no-provider-block"), Options{Config: &cfg.Lint})
+	errs, err := File(testdataPath("no-tg-provider-blocks"), Options{Config: &cfg.Lint})
 	require.NoError(t, err)
 	for _, e := range errs {
 		assert.NotEqual(t, NoProviderBlock, e.Kind)

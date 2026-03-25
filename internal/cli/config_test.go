@@ -34,7 +34,7 @@ func TestConfigInit_Success(t *testing.T) {
 	assert.NotNil(t, cfg.Lint.Rules)
 	assert.True(t, len(cfg.Lint.Rules) > 0)
 	assert.True(t, cfg.Lint.Rules["missing-required"].Enabled)
-	assert.True(t, cfg.Lint.Rules["extra-input"].Enabled)
+	assert.True(t, cfg.Lint.Rules["extra-inputs"].Enabled)
 	assert.True(t, cfg.Lint.Rules["type-mismatch"].Enabled)
 }
 
