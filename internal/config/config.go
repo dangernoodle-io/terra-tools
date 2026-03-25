@@ -148,8 +148,8 @@ func GlobalPath() (string, error) {
 
 // Discover finds and loads the effective config by:
 // 1. Walking up from startDir to find .terranoodle.yml
-// 2. Loading global config from ~/.config/terranoodle/config.yml
-// 3. Merging: global <- project (project wins)
+// 2. Loading global config from ~/.config/terranoodle/config.yml (with profile support)
+// 3. Merging: defaults <- global (with profile) <- project (project wins)
 //
 // Returns an empty Config (not nil) if no config files are found.
 func Discover(startDir string) (*Config, error) {
@@ -179,27 +179,61 @@ func Discover(startDir string) (*Config, error) {
 		dir = parent
 	}
 
-	// Load global config
-	var globalCfg *Config
+	// Load global config with profile support
+	var effectiveGlobalLint LintConfig
 	globalPath, err := GlobalPath()
 	if err == nil {
 		if _, err := os.Stat(globalPath); err == nil {
-			globalCfg, err = Load(globalPath)
-			if err != nil {
-				return nil, err
+			globalCfg, err := LoadGlobal(globalPath)
+			if err == nil {
+				// Build effective global LintConfig with profile matching
+				effectiveGlobalLint = buildEffectiveGlobalLint(globalCfg, absDir)
 			}
+			// Silently ignore errors loading global config
 		}
 	}
 
-	// Merge: defaults <- global <- project
+	// Merge: defaults <- global (with profile) <- project
 	result := Default()
-	if globalCfg != nil {
-		result = Merge(result, globalCfg)
+	if !isEmptyLintConfig(effectiveGlobalLint) {
+		result = Merge(result, &Config{Lint: effectiveGlobalLint})
 	}
 	if projectCfg != nil {
 		result = Merge(result, projectCfg)
 	}
 	return result, nil
+}
+
+// buildEffectiveGlobalLint builds the effective LintConfig from a GlobalConfig
+// by merging: legacy flat lint <- default profile <- matched profile.
+func buildEffectiveGlobalLint(cfg *GlobalConfig, cwd string) LintConfig {
+	result := cfg.Lint // Start with legacy flat lint config
+
+	// Merge default profile if it exists
+	if defaultProfile, ok := cfg.Profiles["default"]; ok {
+		tempCfg := &Config{Lint: result}
+		profileCfg := &Config{Lint: defaultProfile.Lint}
+		tempCfg = Merge(tempCfg, profileCfg)
+		result = tempCfg.Lint
+	}
+
+	// Match and merge named profile if one matches the current working directory
+	matchedName := MatchProfile(cfg, cwd)
+	if matchedName != "" {
+		if matchedProfile, ok := cfg.Profiles[matchedName]; ok {
+			tempCfg := &Config{Lint: result}
+			profileCfg := &Config{Lint: matchedProfile.Lint}
+			tempCfg = Merge(tempCfg, profileCfg)
+			result = tempCfg.Lint
+		}
+	}
+
+	return result
+}
+
+// isEmptyLintConfig checks if a LintConfig has no meaningful content.
+func isEmptyLintConfig(lc LintConfig) bool {
+	return len(lc.Rules) == 0 && len(lc.ExcludeDirs) == 0 && len(lc.Overrides) == 0
 }
 
 // Merge returns a new Config with b's values overriding a's.
