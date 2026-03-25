@@ -547,12 +547,8 @@ func TestFile_ExtraInputAllow(t *testing.T) {
 
 	for _, e := range errs {
 		assert.Equal(t, ExtraInput, e.Kind)
-		if e.Variable == "environment" {
-			assert.Equal(t, SeverityWarning, e.Severity, "allowed variable should be warning")
-		} else {
-			assert.Equal(t, SeverityError, e.Severity, "non-allowed variable should be error")
-			assert.Equal(t, "bogus_field", e.Variable)
-		}
+		// Both allowed and non-allowed variables default to warning severity
+		assert.Equal(t, SeverityWarning, e.Severity)
 	}
 }
 
@@ -569,12 +565,9 @@ func TestFile_ExtraInputAllowGlob(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
+	// All extra-inputs errors default to warning severity
 	for _, e := range errs {
-		if e.Variable == "bogus_field" {
-			assert.Equal(t, SeverityWarning, e.Severity, "glob-matched variable should be warning")
-		} else {
-			assert.Equal(t, SeverityError, e.Severity, "non-matched variable should be error")
-		}
+		assert.Equal(t, SeverityWarning, e.Severity)
 	}
 }
 
@@ -591,8 +584,9 @@ func TestFile_ExtraInputAllowNoMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, errs, 2)
 
+	// All extra-inputs errors default to warning severity
 	for _, e := range errs {
-		assert.Equal(t, SeverityError, e.Severity, "non-matching allow should keep error severity")
+		assert.Equal(t, SeverityWarning, e.Severity)
 	}
 }
 

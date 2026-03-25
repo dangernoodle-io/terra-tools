@@ -101,6 +101,44 @@ func TestRuleConfigUnmarshalYAML_ObjectForm(t *testing.T) {
 	}
 }
 
+// Test RuleConfig Severity YAML round-trip.
+func TestRuleConfig_Severity_YAML(t *testing.T) {
+	input := `lint:
+  rules:
+    missing-required:
+      enabled: true
+      severity: error
+`
+	var cfg Config
+	err := yaml.Unmarshal([]byte(input), &cfg)
+	require.NoError(t, err)
+	rule := cfg.Lint.Rules["missing-required"]
+	assert.Equal(t, "error", rule.Severity)
+	assert.Equal(t, true, rule.Enabled)
+}
+
+// Test RuleConfig Severity Marshal.
+func TestRuleConfig_Severity_Marshal(t *testing.T) {
+	cfg := RuleConfig{Enabled: true, Severity: "error"}
+	data, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "severity: error")
+}
+
+// Test RuleConfig Severity with options.
+func TestRuleConfig_Severity_WithOptions(t *testing.T) {
+	input := `enabled: true
+severity: warn
+max-warnings: 10
+`
+	var rc RuleConfig
+	err := yaml.Unmarshal([]byte(input), &rc)
+	require.NoError(t, err)
+	assert.Equal(t, true, rc.Enabled)
+	assert.Equal(t, "warn", rc.Severity)
+	assert.Equal(t, 10, rc.Options["max-warnings"])
+}
+
 // Test RuleConfig UnmarshalYAML - invalid form.
 func TestRuleConfigUnmarshalYAML_InvalidForm(t *testing.T) {
 	tests := []struct {
@@ -671,4 +709,41 @@ func TestDefault(t *testing.T) {
 	assert.Equal(t, false, cfg.Lint.Rules["no-tg-provider-blocks"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["set-string-type"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["provider-constraint-style"].Enabled)
+}
+
+// Test LintConfig RuleSeverity method.
+func TestLintConfig_RuleSeverity(t *testing.T) {
+	cfg := &LintConfig{
+		Rules: map[string]RuleConfig{
+			"missing-required": {Enabled: true, Severity: "error"},
+			"extra-inputs":     {Enabled: true},
+		},
+	}
+	tests := []struct {
+		name     string
+		ruleName string
+		want     string
+	}{
+		{
+			name:     "explicit error",
+			ruleName: "missing-required",
+			want:     "error",
+		},
+		{
+			name:     "default warn",
+			ruleName: "extra-inputs",
+			want:     "warn",
+		},
+		{
+			name:     "unknown rule defaults to warn",
+			ruleName: "unknown-rule",
+			want:     "warn",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sev := cfg.RuleSeverity(tt.ruleName, "/some/path")
+			assert.Equal(t, tt.want, sev)
+		})
+	}
 }

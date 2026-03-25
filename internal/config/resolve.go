@@ -41,6 +41,19 @@ func (c *LintConfig) IsRuleEnabled(ruleName, relPath string) bool {
 	return enabled
 }
 
+// RuleSeverity returns the configured severity for a rule at a given path.
+// Returns "error" if severity is explicitly set to "error", otherwise "warn" (default).
+func (c *LintConfig) RuleSeverity(ruleName, filePath string) string {
+	rule, ok := c.Rules[ruleName]
+	if !ok {
+		return "warn"
+	}
+	if rule.Severity == "error" {
+		return "error"
+	}
+	return "warn"
+}
+
 // pathMatchesAny checks if path matches any of the glob patterns.
 func pathMatchesAny(path string, patterns []string) bool {
 	for _, pattern := range patterns {
