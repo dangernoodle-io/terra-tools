@@ -95,6 +95,42 @@ func (k ErrorKind) String() string {
 }
 
 var snakeCaseRe = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+var shaPattern = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)
+
+// isSHA reports whether ref is a commit SHA (7-40 hex characters).
+func isSHA(ref string) bool {
+	return shaPattern.MatchString(ref)
+}
+
+// getSHAOption reads the "sha" option from source-ref-semver rule's config.
+// Returns "warn" if sha is "warn" or true (bool), "error" otherwise or if not set.
+func getSHAOption(opts Options) string {
+	if opts.Config == nil {
+		return "error"
+	}
+	rule, ok := opts.Config.Rules["source-ref-semver"]
+	if !ok {
+		return "error"
+	}
+	raw, ok := rule.Options["sha"]
+	if !ok {
+		return "error"
+	}
+	switch v := raw.(type) {
+	case string:
+		if v == "warn" || v == "true" {
+			return "warn"
+		}
+		return "error"
+	case bool:
+		if v {
+			return "warn"
+		}
+		return "error"
+	default:
+		return "error"
+	}
+}
 
 // Error represents a single validation finding.
 type Error struct {
@@ -136,6 +172,23 @@ func checkSourceRef(source, file string, opts Options) []Error {
 	if _, err := goversion.NewVersion(ref); err == nil {
 		return nil
 	}
+
+	// SHA detection — controlled by "sha" option
+	if isSHA(ref) {
+		sev := SeverityError
+		shaOpt := getSHAOption(opts)
+		if shaOpt == "warn" {
+			sev = SeverityWarning
+		}
+		return []Error{{
+			File:     file,
+			Kind:     SourceRefSemver,
+			Severity: sev,
+			Detail:   fmt.Sprintf("source pinned to commit SHA %q, use a semver tag", ref),
+		}}
+	}
+
+	// Branch/tag — check allow list
 	sev := SeverityError
 	for _, pattern := range getAllowPatterns(opts, "source-ref-semver") {
 		if matched, _ := filepath.Match(pattern, ref); matched {
