@@ -47,6 +47,33 @@ func filterErrors(errs []Error, opts Options) []Error {
 	return filtered
 }
 
+// applySeverity sets error severity based on per-rule config.
+// Default severity is warn. Allow-list downgrades are preserved (never upgraded back to error).
+func applySeverity(errs []Error, opts Options) []Error {
+	if opts.Config == nil {
+		return errs
+	}
+	for i := range errs {
+		ruleName, ok := ruleNames[errs[i].Kind]
+		if !ok {
+			continue
+		}
+		configured := opts.Config.RuleSeverity(ruleName, errs[i].File)
+		var configSev Severity
+		if configured == "error" {
+			configSev = SeverityError
+		} else {
+			configSev = SeverityWarning
+		}
+		// Use max to never upgrade allow-list warnings back to error.
+		// SeverityWarning(1) > SeverityError(0), so max preserves warnings.
+		if configSev > errs[i].Severity {
+			errs[i].Severity = configSev
+		}
+	}
+	return errs
+}
+
 // isExcludedDir checks if a directory name matches ExcludeDirs.
 func isExcludedDir(name string, opts Options) bool {
 	if opts.Config == nil {

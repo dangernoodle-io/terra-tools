@@ -313,9 +313,9 @@ variable "labels" {
 	lintDirFlag = configDir
 	lintAllFlag = false
 
+	t.Setenv("CI", "")
 	err = runLint(lintCmd, nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error")
+	assert.NoError(t, err) // default severity is warn; warnings don't fail without --strict
 }
 
 func TestRunLint_EmptyDir(t *testing.T) {

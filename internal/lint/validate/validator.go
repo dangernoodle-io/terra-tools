@@ -312,7 +312,9 @@ func File(path string, opts ...Options) ([]Error, error) {
 
 	errs := check(absPath, cfg.Inputs, variables, depOutputKeys, envVarKeys, cfg.IncludeInputKeys, tfVarKeys, cfg.EvalCtx)
 	results = append(results, errs...)
-	return filterErrors(applyAllowList(results, opt), opt), nil
+	results = filterErrors(applyAllowList(results, opt), opt)
+	results = applySeverity(results, opt)
+	return results, nil
 }
 
 // StackFile validates a terragrunt.stack.hcl file by checking each unit.
@@ -376,7 +378,9 @@ func StackFile(path string, opts ...Options) ([]Error, error) {
 		allErrors = append(allErrors, unitErrors...)
 	}
 
-	return filterErrors(applyAllowList(allErrors, opt), opt), nil
+	allErrors = filterErrors(applyAllowList(allErrors, opt), opt)
+	allErrors = applySeverity(allErrors, opt)
+	return allErrors, nil
 }
 
 // resolveDepExemptions builds the set of input keys that are exempt from the
@@ -477,7 +481,9 @@ func TerraformDir(dir string, opts ...Options) ([]Error, error) {
 		allErrors = append(allErrors, mcErrors...)
 	}
 
-	return filterErrors(applyAllowList(allErrors, opt), opt), nil
+	allErrors = filterErrors(applyAllowList(allErrors, opt), opt)
+	allErrors = applySeverity(allErrors, opt)
+	return allErrors, nil
 }
 
 // ModuleDir validates variable and output declarations in a Terraform module directory.
@@ -703,7 +709,9 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		}
 	}
 
-	return filterErrors(errs, opt), nil
+	errs = filterErrors(errs, opt)
+	errs = applySeverity(errs, opt)
+	return errs, nil
 }
 
 func check(file string, inputs map[string]hcl.Expression, variables []tfmod.Variable, depOutputKeys map[string]bool, envVarKeys map[string]bool, includeInputKeys map[string]bool, tfVarKeys map[string]bool, evalCtx *hcl.EvalContext) []Error {

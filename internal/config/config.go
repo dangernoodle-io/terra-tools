@@ -35,8 +35,9 @@ type Override struct {
 // RuleConfig supports both short form (bool) and long form (object with enabled + options).
 // YAML: `rule: true` or `rule: {enabled: true, some-option: "value"}`.
 type RuleConfig struct {
-	Enabled bool
-	Options map[string]interface{}
+	Enabled  bool
+	Severity string // "error" or "warn"; empty means "warn"
+	Options  map[string]interface{}
 }
 
 // UnmarshalYAML handles both bool and object forms.
@@ -67,6 +68,14 @@ func (r *RuleConfig) UnmarshalYAML(node *yaml.Node) error {
 			delete(raw, "enabled")
 		}
 
+		// Extract "severity" key
+		if v, ok := raw["severity"]; ok {
+			if s, ok := v.(string); ok {
+				r.Severity = s
+			}
+			delete(raw, "severity")
+		}
+
 		// Remaining keys are options
 		if len(raw) > 0 {
 			r.Options = raw
@@ -77,13 +86,16 @@ func (r *RuleConfig) UnmarshalYAML(node *yaml.Node) error {
 	return fmt.Errorf("rule config: expected bool or mapping, got kind %d", node.Kind)
 }
 
-// MarshalYAML writes short form if no options, long form otherwise.
+// MarshalYAML writes short form if no options and no severity, long form otherwise.
 func (r RuleConfig) MarshalYAML() (interface{}, error) {
-	if len(r.Options) == 0 {
+	if len(r.Options) == 0 && r.Severity == "" {
 		return r.Enabled, nil
 	}
-	m := make(map[string]interface{}, len(r.Options)+1)
+	m := make(map[string]interface{}, len(r.Options)+2)
 	m["enabled"] = r.Enabled
+	if r.Severity != "" {
+		m["severity"] = r.Severity
+	}
 	for k, v := range r.Options {
 		m[k] = v
 	}
