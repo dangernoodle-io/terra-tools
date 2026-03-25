@@ -24,7 +24,6 @@ terranoodle
     remove [flags]     # remove destroyed resources from state without destroying infrastructure
     rename [flags]     # detect renames and generate moved blocks or execute state mv
     scaffold [flags]   # scaffold import config from existing state
-  version              # print version
 ```
 
 ## Install
