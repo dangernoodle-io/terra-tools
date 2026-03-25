@@ -184,7 +184,7 @@ func TestLoad_ValidFile(t *testing.T) {
 	content := `lint:
   rules:
     missing-required: true
-    extra-input: false
+    extra-inputs: false
   exclude-dirs:
     - node_modules
     - vendor
@@ -195,7 +195,7 @@ func TestLoad_ValidFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, cfg)
 	assert.Equal(t, true, cfg.Lint.Rules["missing-required"].Enabled)
-	assert.Equal(t, false, cfg.Lint.Rules["extra-input"].Enabled)
+	assert.Equal(t, false, cfg.Lint.Rules["extra-inputs"].Enabled)
 	assert.Equal(t, []string{"node_modules", "vendor"}, cfg.Lint.ExcludeDirs)
 }
 
@@ -257,7 +257,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 		Lint: LintConfig{
 			Rules: map[string]RuleConfig{
 				"missing-required": {Enabled: true},
-				"extra-input": {
+				"extra-inputs": {
 					Enabled: false,
 					Options: map[string]interface{}{
 						"max-warnings": 10,
@@ -286,7 +286,7 @@ func TestSaveAndLoad_Roundtrip(t *testing.T) {
 
 	// Verify equality
 	assert.Equal(t, original.Lint.Rules["missing-required"].Enabled, loaded.Lint.Rules["missing-required"].Enabled)
-	assert.Equal(t, original.Lint.Rules["extra-input"].Enabled, loaded.Lint.Rules["extra-input"].Enabled)
+	assert.Equal(t, original.Lint.Rules["extra-inputs"].Enabled, loaded.Lint.Rules["extra-inputs"].Enabled)
 	assert.Equal(t, original.Lint.ExcludeDirs, loaded.Lint.ExcludeDirs)
 	assert.Equal(t, len(original.Lint.Overrides), len(loaded.Lint.Overrides))
 }
@@ -334,7 +334,7 @@ func TestDiscover_WalkUp(t *testing.T) {
 	content := `lint:
   rules:
     missing-required: true
-    extra-input: false
+    extra-inputs: false
 `
 	require.NoError(t, os.WriteFile(parentConfigPath, []byte(content), 0o644))
 
@@ -343,7 +343,7 @@ func TestDiscover_WalkUp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, cfg)
 	assert.Equal(t, true, cfg.Lint.Rules["missing-required"].Enabled)
-	assert.Equal(t, false, cfg.Lint.Rules["extra-input"].Enabled)
+	assert.Equal(t, false, cfg.Lint.Rules["extra-inputs"].Enabled)
 }
 
 // Test Merge - rules merged per-key (b wins).
@@ -657,18 +657,18 @@ func TestDefault(t *testing.T) {
 	assert.NotNil(t, cfg)
 	assert.Equal(t, 15, len(cfg.Lint.Rules))
 	assert.Equal(t, true, cfg.Lint.Rules["missing-required"].Enabled)
-	assert.Equal(t, true, cfg.Lint.Rules["extra-input"].Enabled)
+	assert.Equal(t, true, cfg.Lint.Rules["extra-inputs"].Enabled)
 	assert.Equal(t, true, cfg.Lint.Rules["type-mismatch"].Enabled)
 	assert.Equal(t, true, cfg.Lint.Rules["source-ref-semver"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["source-protocol"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["missing-description"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["non-snake-case"].Enabled)
-	assert.Equal(t, false, cfg.Lint.Rules["unused-variable"].Enabled)
+	assert.Equal(t, false, cfg.Lint.Rules["unused-variables"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["optional-without-default"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["missing-include-expose"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["allowed-filenames"].Enabled)
-	assert.Equal(t, false, cfg.Lint.Rules["versions-tf"].Enabled)
-	assert.Equal(t, false, cfg.Lint.Rules["no-provider-block"].Enabled)
+	assert.Equal(t, false, cfg.Lint.Rules["has-versions-tf"].Enabled)
+	assert.Equal(t, false, cfg.Lint.Rules["no-tg-provider-blocks"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["set-string-type"].Enabled)
 	assert.Equal(t, false, cfg.Lint.Rules["provider-constraint-style"].Enabled)
 }

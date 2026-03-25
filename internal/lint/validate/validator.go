@@ -195,7 +195,7 @@ func checkSourceProtocol(source, file string, opts Options) []Error {
 
 // applyAllowList downgrades ExtraInput errors to warnings if the variable matches an allow pattern.
 func applyAllowList(errs []Error, opts Options) []Error {
-	patterns := getAllowPatterns(opts, "extra-input")
+	patterns := getAllowPatterns(opts, "extra-inputs")
 	if len(patterns) == 0 {
 		return errs
 	}
@@ -260,7 +260,7 @@ func File(path string, opts ...Options) ([]Error, error) {
 	}
 
 	// Check for provider blocks
-	checkNoProviderBlock := opt.Config != nil && opt.Config.IsRuleEnabled("no-provider-block", absPath)
+	checkNoProviderBlock := opt.Config != nil && opt.Config.IsRuleEnabled("no-tg-provider-blocks", absPath)
 	if checkNoProviderBlock {
 		for _, name := range cfg.ProviderBlockNames {
 			includeErrs = append(includeErrs, Error{
@@ -542,8 +542,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		}
 	}
 
-	// Rule: unused-variable — guard I/O behind rule check
-	if opt.Config != nil && opt.Config.IsRuleEnabled("unused-variable", absDir) {
+	// Rule: unused-variables — guard I/O behind rule check
+	if opt.Config != nil && opt.Config.IsRuleEnabled("unused-variables", absDir) {
 		refs, refErr := tfmod.CollectVarRefs(absDir)
 		if refErr != nil {
 			return nil, refErr
@@ -616,8 +616,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 			allowed[f] = true
 		}
 
-		// If versions-tf rule is also enabled, auto-include versions.tf
-		if opt.Config.IsRuleEnabled("versions-tf", absDir) {
+		// If has-versions-tf rule is also enabled, auto-include versions.tf
+		if opt.Config.IsRuleEnabled("has-versions-tf", absDir) {
 			allowed["versions.tf"] = true
 		}
 
@@ -633,8 +633,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		}
 	}
 
-	// Rule: versions-tf — guard behind rule check
-	if opt.Config != nil && opt.Config.IsRuleEnabled("versions-tf", absDir) {
+	// Rule: has-versions-tf — guard behind rule check
+	if opt.Config != nil && opt.Config.IsRuleEnabled("has-versions-tf", absDir) {
 		vResult, vErr := tfmod.ParseVersionsTF(absDir)
 		if vErr != nil {
 			return nil, vErr
