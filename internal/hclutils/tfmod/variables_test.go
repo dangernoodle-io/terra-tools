@@ -247,3 +247,22 @@ variable "without_desc" {
 	assert.Equal(t, "without_desc", result[1].Name)
 	assert.False(t, result[1].HasDescription)
 }
+
+func TestParseVariables_SourceLocation(t *testing.T) {
+	dir := t.TempDir()
+	varFile := filepath.Join(dir, "variables.tf")
+	content := `variable "test_var" {
+  type = string
+}
+`
+	require.NoError(t, os.WriteFile(varFile, []byte(content), 0o644))
+
+	result, err := ParseVariables(dir)
+
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "test_var", result[0].Name)
+	assert.Greater(t, len(result[0].File), 0)
+	assert.Contains(t, result[0].File, "variables.tf")
+	assert.Equal(t, 1, result[0].Line)
+}

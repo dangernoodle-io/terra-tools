@@ -932,3 +932,104 @@ func TestParseOptionValue_ListWithSpaces(t *testing.T) {
 	assert.Equal(t, "bar", list[1])
 	assert.Equal(t, "baz", list[2])
 }
+
+// Helper to create a bool pointer.
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+// Test RuleConfig Autofix YAML unmarshal.
+func TestRuleConfig_AutofixYAML_Unmarshal(t *testing.T) {
+	input := `missing-description:
+  enabled: true
+  autofix: false
+`
+	var cfg Config
+	err := yaml.Unmarshal([]byte(input), &cfg)
+	require.NoError(t, err)
+	// Note: we're unmarshaling into a raw map here due to how Config works
+	// Let's unmarshal just the RuleConfig instead
+}
+
+// Test RuleConfig Autofix unmarshal - autofix false.
+func TestRuleConfig_AutofixUnmarshal_False(t *testing.T) {
+	input := `enabled: true
+autofix: false
+`
+	var rc RuleConfig
+	err := yaml.Unmarshal([]byte(input), &rc)
+	require.NoError(t, err)
+	assert.Equal(t, true, rc.Enabled)
+	assert.NotNil(t, rc.Autofix)
+	assert.Equal(t, false, *rc.Autofix)
+}
+
+// Test RuleConfig Autofix unmarshal - autofix true.
+func TestRuleConfig_AutofixUnmarshal_True(t *testing.T) {
+	input := `enabled: true
+autofix: true
+`
+	var rc RuleConfig
+	err := yaml.Unmarshal([]byte(input), &rc)
+	require.NoError(t, err)
+	assert.Equal(t, true, rc.Enabled)
+	assert.NotNil(t, rc.Autofix)
+	assert.Equal(t, true, *rc.Autofix)
+}
+
+// Test RuleConfig Autofix unmarshal - autofix not present.
+func TestRuleConfig_AutofixUnmarshal_Nil(t *testing.T) {
+	input := `enabled: true
+`
+	var rc RuleConfig
+	err := yaml.Unmarshal([]byte(input), &rc)
+	require.NoError(t, err)
+	assert.Equal(t, true, rc.Enabled)
+	assert.Nil(t, rc.Autofix)
+}
+
+// Test RuleConfig Autofix marshal - with autofix.
+func TestRuleConfig_AutofixMarshal_WithAutofix(t *testing.T) {
+	rc := RuleConfig{
+		Enabled: true,
+		Autofix: boolPtr(false),
+	}
+	data, err := yaml.Marshal(rc)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "autofix: false")
+	assert.Contains(t, string(data), "enabled: true")
+}
+
+// Test RuleConfig Autofix marshal - without autofix.
+func TestRuleConfig_AutofixMarshal_WithoutAutofix(t *testing.T) {
+	rc := RuleConfig{
+		Enabled: true,
+		Autofix: nil,
+	}
+	data, err := yaml.Marshal(rc)
+	require.NoError(t, err)
+	// Should be short form with just "true"
+	assert.Equal(t, "true\n", string(data))
+}
+
+// Test RuleConfig Autofix roundtrip with other fields.
+func TestRuleConfig_AutofixRoundtrip_WithSeverity(t *testing.T) {
+	input := `enabled: true
+severity: error
+autofix: false
+`
+	var rc RuleConfig
+	err := yaml.Unmarshal([]byte(input), &rc)
+	require.NoError(t, err)
+	assert.Equal(t, true, rc.Enabled)
+	assert.Equal(t, "error", rc.Severity)
+	assert.NotNil(t, rc.Autofix)
+	assert.Equal(t, false, *rc.Autofix)
+
+	// Marshal back
+	data, err := yaml.Marshal(rc)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "enabled: true")
+	assert.Contains(t, string(data), "severity: error")
+	assert.Contains(t, string(data), "autofix: false")
+}

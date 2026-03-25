@@ -172,6 +172,9 @@ type Error struct {
 	Kind     ErrorKind
 	Detail   string
 	Severity Severity
+	Line     int
+	Autofix  bool
+	Fix      string
 }
 
 // tfVarEnvKeys returns a map of variable names parsed from TF_VAR_* environment variables.
@@ -472,6 +475,7 @@ func File(path string, opts ...Options) ([]Error, error) {
 
 	results = filterErrors(applyAllowList(results, opt), opt)
 	results = applySeverity(results, opt)
+	results = applyAutofix(results, opt)
 	return results, nil
 }
 
@@ -538,6 +542,7 @@ func StackFile(path string, opts ...Options) ([]Error, error) {
 
 	allErrors = filterErrors(applyAllowList(allErrors, opt), opt)
 	allErrors = applySeverity(allErrors, opt)
+	allErrors = applyAutofix(allErrors, opt)
 	return allErrors, nil
 }
 
@@ -641,6 +646,7 @@ func TerraformDir(dir string, opts ...Options) ([]Error, error) {
 
 	allErrors = filterErrors(applyAllowList(allErrors, opt), opt)
 	allErrors = applySeverity(allErrors, opt)
+	allErrors = applyAutofix(allErrors, opt)
 	return allErrors, nil
 }
 
@@ -671,7 +677,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 	for _, v := range variables {
 		if !v.HasDescription {
 			errs = append(errs, Error{
-				File:     absDir,
+				File:     v.File,
+				Line:     v.Line,
 				Variable: v.Name,
 				Kind:     MissingDescription,
 				Detail:   fmt.Sprintf("variable %q has no description", v.Name),
@@ -679,7 +686,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		}
 		if !snakeCaseRe.MatchString(v.Name) {
 			errs = append(errs, Error{
-				File:     absDir,
+				File:     v.File,
+				Line:     v.Line,
 				Variable: v.Name,
 				Kind:     NonSnakeCase,
 				Detail:   fmt.Sprintf("variable name %q is not snake_case", v.Name),
@@ -690,7 +698,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 	for _, o := range outputs {
 		if !o.HasDescription {
 			errs = append(errs, Error{
-				File:     absDir,
+				File:     o.File,
+				Line:     o.Line,
 				Variable: o.Name,
 				Kind:     MissingDescription,
 				Detail:   fmt.Sprintf("output %q has no description", o.Name),
@@ -698,7 +707,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		}
 		if !snakeCaseRe.MatchString(o.Name) {
 			errs = append(errs, Error{
-				File:     absDir,
+				File:     o.File,
+				Line:     o.Line,
 				Variable: o.Name,
 				Kind:     NonSnakeCase,
 				Detail:   fmt.Sprintf("output name %q is not snake_case", o.Name),
@@ -715,7 +725,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		for _, v := range variables {
 			if !refs[v.Name] {
 				errs = append(errs, Error{
-					File:     absDir,
+					File:     v.File,
+					Line:     v.Line,
 					Variable: v.Name,
 					Kind:     UnusedVariable,
 					Detail:   fmt.Sprintf("variable %q is declared but never referenced", v.Name),
@@ -729,7 +740,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		for _, v := range variables {
 			if tfmod.HasOptionalWithoutDefault(v.Type) {
 				errs = append(errs, Error{
-					File:     absDir,
+					File:     v.File,
+					Line:     v.Line,
 					Variable: v.Name,
 					Kind:     OptionalWithoutDefault,
 					Detail:   fmt.Sprintf("variable %q has optional() attribute without a default value", v.Name),
@@ -743,7 +755,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 		for _, v := range variables {
 			if tfmod.HasSetString(v.Type) {
 				errs = append(errs, Error{
-					File:     absDir,
+					File:     v.File,
+					Line:     v.Line,
 					Variable: v.Name,
 					Kind:     SetStringType,
 					Detail:   fmt.Sprintf("variable %q uses set(string) — consider list(string) instead", v.Name),
@@ -952,7 +965,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 			}
 
 			errs = append(errs, Error{
-				File:     absDir,
+				File:     v.File,
+				Line:     v.Line,
 				Variable: v.Name,
 				Kind:     MissingValidation,
 				Detail:   fmt.Sprintf("variable %q has no validation block", v.Name),
@@ -977,7 +991,8 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 			for _, refName := range o.VarRefs {
 				if sensitiveVars[refName] {
 					errs = append(errs, Error{
-						File:     absDir,
+						File:     o.File,
+						Line:     o.Line,
 						Variable: o.Name,
 						Kind:     SensitiveOutput,
 						Detail:   fmt.Sprintf("output %q references sensitive variable %q but is not marked sensitive", o.Name, refName),
@@ -990,6 +1005,7 @@ func ModuleDir(dir string, opts ...Options) ([]Error, error) {
 
 	errs = filterErrors(errs, opt)
 	errs = applySeverity(errs, opt)
+	errs = applyAutofix(errs, opt)
 	return errs, nil
 }
 

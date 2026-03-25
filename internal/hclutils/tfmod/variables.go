@@ -13,6 +13,8 @@ import (
 // Variable represents a declared terraform variable.
 type Variable struct {
 	Name           string
+	File           string
+	Line           int
 	HasDefault     bool
 	HasDescription bool
 	HasValidation  bool
@@ -96,6 +98,8 @@ func extractVariables(body hcl.Body) ([]Variable, error) {
 
 		v := Variable{
 			Name: block.Labels[0],
+			File: block.DefRange.Filename,
+			Line: block.DefRange.Start.Line,
 		}
 
 		if _, ok := varContent.Attributes["default"]; ok {
