@@ -424,13 +424,13 @@ func TestCheckSourceRef_NonSemver(t *testing.T) {
 	sources := []string{
 		"git::https://example.com/modules/vpc.git?ref=main",
 		"git::https://example.com/modules/vpc.git?ref=master",
-		"git::https://example.com/modules/vpc.git?ref=abc1234def5678",
 	}
 	for _, src := range sources {
 		errs := checkSourceRef(src, "/test/terragrunt.hcl", Options{})
 		require.Len(t, errs, 1, "expected 1 error for source %q", src)
 		assert.Equal(t, SourceRefSemver, errs[0].Kind)
 		assert.Equal(t, SeverityError, errs[0].Severity)
+		assert.Contains(t, errs[0].Detail, "is not a semver version")
 	}
 }
 
@@ -498,6 +498,97 @@ func TestFile_SourceRefSemver(t *testing.T) {
 	assert.Equal(t, SourceRefSemver, errs[0].Kind)
 	assert.Equal(t, SeverityError, errs[0].Severity)
 	assert.Contains(t, errs[0].Detail, "main")
+}
+
+func TestCheckSourceRef_SHA_DefaultError(t *testing.T) {
+	sources := []string{
+		"git::https://example.com/modules/vpc.git?ref=abc1234",
+		"git::https://example.com/modules/vpc.git?ref=abc1234def5678901234567890abcdef12345678",
+	}
+	for _, src := range sources {
+		errs := checkSourceRef(src, "/test/terragrunt.hcl", Options{})
+		require.Len(t, errs, 1, "expected 1 error for source %q", src)
+		assert.Equal(t, SourceRefSemver, errs[0].Kind)
+		assert.Equal(t, SeverityError, errs[0].Severity)
+		assert.Contains(t, errs[0].Detail, "commit SHA")
+	}
+}
+
+func TestCheckSourceRef_SHA_WarnOption(t *testing.T) {
+	cfg := &config.LintConfig{
+		Rules: map[string]config.RuleConfig{
+			"source-ref-semver": {Enabled: true, Options: map[string]interface{}{
+				"sha": "warn",
+			}},
+		},
+	}
+	opts := Options{Config: cfg}
+	errs := checkSourceRef("git::https://example.com/repo.git?ref=abc1234def5678", "/test/terragrunt.hcl", opts)
+	require.Len(t, errs, 1)
+	assert.Equal(t, SeverityWarning, errs[0].Severity)
+	assert.Contains(t, errs[0].Detail, "commit SHA")
+}
+
+func TestCheckSourceRef_SHA_TrueOption(t *testing.T) {
+	cfg := &config.LintConfig{
+		Rules: map[string]config.RuleConfig{
+			"source-ref-semver": {Enabled: true, Options: map[string]interface{}{
+				"sha": true,
+			}},
+		},
+	}
+	opts := Options{Config: cfg}
+	errs := checkSourceRef("git::https://example.com/repo.git?ref=abc1234def5678", "/test/terragrunt.hcl", opts)
+	require.Len(t, errs, 1)
+	assert.Equal(t, SeverityWarning, errs[0].Severity)
+}
+
+func TestCheckSourceRef_SHA_ExplicitError(t *testing.T) {
+	cfg := &config.LintConfig{
+		Rules: map[string]config.RuleConfig{
+			"source-ref-semver": {Enabled: true, Options: map[string]interface{}{
+				"sha": "error",
+			}},
+		},
+	}
+	opts := Options{Config: cfg}
+	errs := checkSourceRef("git::https://example.com/repo.git?ref=abc1234def5678", "/test/terragrunt.hcl", opts)
+	require.Len(t, errs, 1)
+	assert.Equal(t, SeverityError, errs[0].Severity)
+}
+
+func TestCheckSourceRef_SHA_AllowListIgnored(t *testing.T) {
+	cfg := &config.LintConfig{
+		Rules: map[string]config.RuleConfig{
+			"source-ref-semver": {Enabled: true, Options: map[string]interface{}{
+				"allow": []interface{}{"abc*"},
+			}},
+		},
+	}
+	opts := Options{Config: cfg}
+	errs := checkSourceRef("git::https://example.com/repo.git?ref=abc1234def5678", "/test/terragrunt.hcl", opts)
+	require.Len(t, errs, 1)
+	assert.Equal(t, SeverityError, errs[0].Severity)
+	assert.Contains(t, errs[0].Detail, "commit SHA")
+}
+
+func TestIsSHA(t *testing.T) {
+	tests := []struct {
+		ref    string
+		expect bool
+	}{
+		{"abc1234", true},
+		{"abc1234def5678901234567890abcdef12345678", true},
+		{"ABC1234", true},
+		{"abcdef", false},
+		{"main", false},
+		{"v1.0.0", false},
+		{"abc1234g", false},
+		{"abc1234def5678901234567890abcdef123456789", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.expect, isSHA(tt.ref), "isSHA(%q)", tt.ref)
+	}
 }
 
 func TestApplyAllowList(t *testing.T) {
