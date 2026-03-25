@@ -13,6 +13,8 @@ import (
 // Output represents a declared terraform output.
 type Output struct {
 	Name           string
+	File           string
+	Line           int
 	HasDescription bool
 	IsSensitive    bool
 	VarRefs        []string // variable names referenced via var.X
@@ -82,7 +84,11 @@ func extractOutputs(body hcl.Body) ([]Output, error) {
 		if diags.HasErrors() {
 			return nil, fmt.Errorf("decoding output %s: %s", block.Labels[0], diags.Error())
 		}
-		o := Output{Name: block.Labels[0]}
+		o := Output{
+			Name: block.Labels[0],
+			File: block.DefRange.Filename,
+			Line: block.DefRange.Start.Line,
+		}
 		if _, ok := bodyContent.Attributes["description"]; ok {
 			o.HasDescription = true
 		}

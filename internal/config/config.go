@@ -37,6 +37,7 @@ type Override struct {
 type RuleConfig struct {
 	Enabled  bool
 	Severity string // "error" or "warn"; empty means "warn"
+	Autofix  *bool  // nil means default (enabled), false means disabled, true means enabled
 	Options  map[string]interface{}
 }
 
@@ -76,6 +77,14 @@ func (r *RuleConfig) UnmarshalYAML(node *yaml.Node) error {
 			delete(raw, "severity")
 		}
 
+		// Extract "autofix" key
+		if v, ok := raw["autofix"]; ok {
+			if b, ok := v.(bool); ok {
+				r.Autofix = &b
+			}
+			delete(raw, "autofix")
+		}
+
 		// Remaining keys are options
 		if len(raw) > 0 {
 			r.Options = raw
@@ -88,13 +97,16 @@ func (r *RuleConfig) UnmarshalYAML(node *yaml.Node) error {
 
 // MarshalYAML writes short form if no options and no severity, long form otherwise.
 func (r RuleConfig) MarshalYAML() (interface{}, error) {
-	if len(r.Options) == 0 && r.Severity == "" {
+	if len(r.Options) == 0 && r.Severity == "" && r.Autofix == nil {
 		return r.Enabled, nil
 	}
-	m := make(map[string]interface{}, len(r.Options)+2)
+	m := make(map[string]interface{}, len(r.Options)+3)
 	m["enabled"] = r.Enabled
 	if r.Severity != "" {
 		m["severity"] = r.Severity
+	}
+	if r.Autofix != nil {
+		m["autofix"] = *r.Autofix
 	}
 	for k, v := range r.Options {
 		m[k] = v

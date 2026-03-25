@@ -209,3 +209,22 @@ output "without_desc" {
 	assert.Equal(t, "without_desc", result[1].Name)
 	assert.False(t, result[1].HasDescription)
 }
+
+func TestParseOutputs_SourceLocation(t *testing.T) {
+	dir := t.TempDir()
+	outputFile := filepath.Join(dir, "outputs.tf")
+	content := `output "test_output" {
+  value = "test-value"
+}
+`
+	require.NoError(t, os.WriteFile(outputFile, []byte(content), 0o644))
+
+	result, err := ParseOutputs(dir)
+
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "test_output", result[0].Name)
+	assert.Greater(t, len(result[0].File), 0)
+	assert.Contains(t, result[0].File, "outputs.tf")
+	assert.Equal(t, 1, result[0].Line)
+}

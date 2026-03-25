@@ -151,3 +151,45 @@ func getAllowPatterns(opts Options, ruleName string) []string {
 func getExcludePatterns(opts Options, ruleName string) []string {
 	return getListOption(opts, ruleName, "exclude")
 }
+
+// autofixRules maps fixable ErrorKind values to their fix hint strings.
+var autofixRules = map[ErrorKind]string{
+	MissingDescription: "add a description attribute to this block",
+	MissingValidation:  "add a validation block with condition and error_message",
+	SensitiveOutput:    "add sensitive = true to this output block",
+}
+
+// RuleName returns the kebab-case config name for an ErrorKind.
+func RuleName(kind ErrorKind) string {
+	return ruleNames[kind]
+}
+
+// AutofixHint returns the fix hint and true if the rule is auto-fixable.
+func AutofixHint(kind ErrorKind) (string, bool) {
+	hint, ok := autofixRules[kind]
+	return hint, ok
+}
+
+// applyAutofix sets the Autofix and Fix fields on errors based on code metadata and config.
+func applyAutofix(errs []Error, opts Options) []Error {
+	for i := range errs {
+		hint, fixable := AutofixHint(errs[i].Kind)
+		if !fixable {
+			continue
+		}
+		errs[i].Autofix = true
+		errs[i].Fix = hint
+
+		// Check config opt-out
+		if opts.Config != nil {
+			ruleName := ruleNames[errs[i].Kind]
+			if rule, ok := opts.Config.Rules[ruleName]; ok {
+				if rule.Autofix != nil && !*rule.Autofix {
+					errs[i].Autofix = false
+					errs[i].Fix = ""
+				}
+			}
+		}
+	}
+	return errs
+}
