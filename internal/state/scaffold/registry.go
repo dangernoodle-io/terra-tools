@@ -65,16 +65,25 @@ var registryBaseURL = "https://raw.githubusercontent.com"
 // httpClient is used for registry fetches with a 10s timeout.
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-// iamBaseSuffix returns the shared _iam doc suffix for IAM member/binding/policy
-// resource suffixes, or empty string if suffix is not an IAM variant.
-// e.g., "artifact_registry_repository_iam_member" → "artifact_registry_repository_iam".
-func iamBaseSuffix(suffix string) string {
+// docURLs returns the two doc path variants for a given doc name.
+func docURLs(namespace, provider, docName string) []string {
+	base := registryBaseURL + "/" + namespace + "/terraform-provider-" + provider + "/main"
+	return []string{
+		base + "/website/docs/r/" + docName + ".html.markdown",
+		base + "/docs/resources/" + docName + ".md",
+	}
+}
+
+// docAliases returns alternative doc names to try when the primary suffix
+// and full resource type don't match. Returns nil if no aliases apply.
+var docAliases = func(suffix string) []string {
+	// IAM consolidated docs: _iam_member/_iam_binding/_iam_policy → _iam
 	for _, variant := range []string{"_iam_member", "_iam_binding", "_iam_policy"} {
 		if strings.HasSuffix(suffix, variant) {
-			return suffix[:len(suffix)-len(variant)] + "_iam"
+			return []string{suffix[:len(suffix)-len(variant)] + "_iam"}
 		}
 	}
-	return ""
+	return nil
 }
 
 // FetchImportFormat fetches the import format for resourceType from the
@@ -89,19 +98,11 @@ func FetchImportFormat(ctx context.Context, resourceType string, cache map[strin
 	namespace := ProviderNamespace(provider)
 	suffix := ResourceSuffix(resourceType, provider)
 
-	urls := []string{
-		registryBaseURL + "/" + namespace + "/terraform-provider-" + provider + "/main/website/docs/r/" + suffix + ".html.markdown",
-		registryBaseURL + "/" + namespace + "/terraform-provider-" + provider + "/main/docs/resources/" + suffix + ".md",
-		// Fallback: some providers keep the full resource type name in doc filenames
-		registryBaseURL + "/" + namespace + "/terraform-provider-" + provider + "/main/website/docs/r/" + resourceType + ".html.markdown",
-		registryBaseURL + "/" + namespace + "/terraform-provider-" + provider + "/main/docs/resources/" + resourceType + ".md",
-	}
-
-	if iamSuffix := iamBaseSuffix(suffix); iamSuffix != "" {
-		urls = append(urls,
-			registryBaseURL+"/"+namespace+"/terraform-provider-"+provider+"/main/website/docs/r/"+iamSuffix+".html.markdown",
-			registryBaseURL+"/"+namespace+"/terraform-provider-"+provider+"/main/docs/resources/"+iamSuffix+".md",
-		)
+	var urls []string
+	urls = append(urls, docURLs(namespace, provider, suffix)...)
+	urls = append(urls, docURLs(namespace, provider, resourceType)...)
+	for _, alias := range docAliases(suffix) {
+		urls = append(urls, docURLs(namespace, provider, alias)...)
 	}
 
 	for _, url := range urls {

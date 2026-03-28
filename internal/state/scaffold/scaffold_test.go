@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	profileconfig "dangernoodle.io/terranoodle/internal/config"
 	stateconfig "dangernoodle.io/terranoodle/internal/state/config"
@@ -198,20 +199,31 @@ func TestRenderYAML_EmptySlice(t *testing.T) {
 	assert.Contains(t, output, "# No resource types found")
 }
 
-func TestIAMBaseSuffix(t *testing.T) {
+func TestDocAliases(t *testing.T) {
 	cases := []struct {
 		suffix string
-		want   string
+		want   []string
 	}{
-		{"artifact_registry_repository_iam_member", "artifact_registry_repository_iam"},
-		{"project_iam_binding", "project_iam"},
-		{"storage_bucket_iam_policy", "storage_bucket_iam"},
-		{"compute_instance", ""},
-		{"project_iam", ""},
+		{"artifact_registry_repository_iam_member", []string{"artifact_registry_repository_iam"}},
+		{"project_iam_binding", []string{"project_iam"}},
+		{"storage_bucket_iam_policy", []string{"storage_bucket_iam"}},
+		{"compute_instance", nil},
+		{"project_iam", nil},
 	}
 	for _, tc := range cases {
-		assert.Equal(t, tc.want, iamBaseSuffix(tc.suffix), "suffix=%q", tc.suffix)
+		assert.Equal(t, tc.want, docAliases(tc.suffix), "suffix=%q", tc.suffix)
 	}
+}
+
+func TestDocURLs(t *testing.T) {
+	original := registryBaseURL
+	registryBaseURL = "https://example.com"
+	t.Cleanup(func() { registryBaseURL = original })
+
+	urls := docURLs("hashicorp", "google", "compute_instance")
+	require.Len(t, urls, 2)
+	assert.Equal(t, "https://example.com/hashicorp/terraform-provider-google/main/website/docs/r/compute_instance.html.markdown", urls[0])
+	assert.Equal(t, "https://example.com/hashicorp/terraform-provider-google/main/docs/resources/compute_instance.md", urls[1])
 }
 
 func TestParseImportSection_QuotedSpacedID(t *testing.T) {
