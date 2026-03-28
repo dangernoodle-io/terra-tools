@@ -121,6 +121,28 @@ func PromptStateFile(r io.Reader, w io.Writer, provider, defaultName string) (st
 	return input, nil
 }
 
+// saveToState builds a config batch from the given types and saves it to the state file.
+// Types with empty or "TODO" IDTemplate are skipped.
+func saveToState(types []scaffold.TypeInfo, statePath string) error {
+	batch := &stateconfig.Config{
+		Vars:      make(map[string]string),
+		Types:     make(map[string]stateconfig.TypeMapping),
+		Resolvers: make(map[string]stateconfig.Resolver),
+	}
+
+	for _, ti := range types {
+		batch.Types[ti.ResourceType] = stateconfig.TypeMapping{
+			ID: ti.IDTemplate,
+		}
+	}
+
+	if len(batch.Types) == 0 {
+		return nil
+	}
+
+	return Save(statePath, batch)
+}
+
 // SaveTypes saves types grouped by provider to their respective state files.
 // For each provider:
 //   - Skips types with IDTemplate == "TODO"
@@ -155,58 +177,28 @@ func SaveTypes(types []scaffold.TypeInfo, globalCfg *profileconfig.GlobalConfig,
 		// Find target profile
 		profileName := profileconfig.ScaffoldProfileForProvider(globalCfg, provider)
 		if profileName == "" {
-			// Prompt for state file name
 			stateName, err := PromptStateFile(r, w, provider, "default")
 			if err != nil {
 				return fmt.Errorf("store: prompt state file: %w", err)
 			}
-			// Save with the provided state name
 			statePath, err := StatePath(stateName)
 			if err != nil {
 				return fmt.Errorf("store: stat path: %w", err)
 			}
-
-			batch := &stateconfig.Config{
-				Vars:      make(map[string]string),
-				Types:     make(map[string]stateconfig.TypeMapping),
-				Resolvers: make(map[string]stateconfig.Resolver),
-			}
-
-			for _, ti := range providerTypes {
-				batch.Types[ti.ResourceType] = stateconfig.TypeMapping{
-					ID: ti.IDTemplate,
-				}
-			}
-
-			if err := Save(statePath, batch); err != nil {
+			if err := saveToState(providerTypes, statePath); err != nil {
 				return fmt.Errorf("store: save batch for %q: %w", provider, err)
 			}
 		} else {
-			// Use profile's state name
 			profile := globalCfg.Profiles[profileName]
 			stateName := profile.Scaffold.State
 			if stateName == "" {
 				stateName = "default"
 			}
-
 			statePath, err := StatePath(stateName)
 			if err != nil {
 				return fmt.Errorf("store: stat path: %w", err)
 			}
-
-			batch := &stateconfig.Config{
-				Vars:      make(map[string]string),
-				Types:     make(map[string]stateconfig.TypeMapping),
-				Resolvers: make(map[string]stateconfig.Resolver),
-			}
-
-			for _, ti := range providerTypes {
-				batch.Types[ti.ResourceType] = stateconfig.TypeMapping{
-					ID: ti.IDTemplate,
-				}
-			}
-
-			if err := Save(statePath, batch); err != nil {
+			if err := saveToState(providerTypes, statePath); err != nil {
 				return fmt.Errorf("store: save batch for %q: %w", provider, err)
 			}
 		}
